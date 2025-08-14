@@ -1,2 +1,2 @@
 # Windowsill-watering
-Arduino based automatic watering sysytem
+(Yet another) Arduino based automatic watering sysytem for three pumps
