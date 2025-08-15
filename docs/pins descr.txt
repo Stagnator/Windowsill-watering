@@ -1,0 +1,1 @@
+Pins A0, A1, A3 - capacity sensor analog input
