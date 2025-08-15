@@ -27,7 +27,7 @@
 //Wet: (430 350]
 //Water: (350 260]
 const int AirValue = 620;  //Calibration of sensors needed!
-const int WaterValue = 310;
+const int WaterValue = 310; //Calibration of sensors needed!
 
 /* Enums */
 
