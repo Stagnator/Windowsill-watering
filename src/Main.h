@@ -32,20 +32,20 @@ const int WaterValue = 310; //Calibration of sensors needed!
 /* Enums */
 
 //machine status
-typedef enum CURR_STATUS {
+typedef enum  {
   STOP,        // System halted
   RUN,         // Sysytem works
   SETUP_MODE,  // System in setup mode
   ALARM        // Leaking detected
-};
+} CURR_STATUS;
 
 // Result of watering attempt
-typedef enum WATERING_RESULT {
+typedef enum  {
   PASS,        // Dont need watering
   DONE,        // Watering succesful
   CANT_REACH,  // Watering failed
   LEAK         // Leaking detected
-};
+} WATERING_RESULT;
 
 
 

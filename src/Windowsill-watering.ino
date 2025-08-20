@@ -29,10 +29,19 @@ const uint8_t pinAlarmLED = 13;                          //Pin of Alarm LED
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
 OneButton encoderBtn (pinOfEncoder[2], true);
-enum CURR_STATUS currentStatus = STOP;
-enum WATERING_RESULT waterignResult = PASS;
+CURR_STATUS currentStatus = STOP;
+WATERING_RESULT waterignResult = PASS;
 
 PUMPER* myPump = new PUMPER[NbOfPump];
+
+void startStop() {
+  int longPress = 1000;
+  longPress=longPress+1;
+}
+
+void leakAlarm() {
+  currentStatus = ALARM;
+}
 
 void setup() {
   Wire.begin();
@@ -46,6 +55,7 @@ void setup() {
 
   pinMode(pinINT1AlarmSensors, INPUT);
   attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarm, HIGH);
+  Serial.println("StartStart11");
 
   
   //lcd.init();
@@ -86,12 +96,4 @@ void alarmLedOn() {
 
 void alarmLedOff() {
   digitalWrite(pinAlarmLED, LOW);
-}
-
-void startStop() {
-  uint8_t longPress = 1000;
-}
-
-void leakAlarm() {
-  currentStatus = ALARM;
 }

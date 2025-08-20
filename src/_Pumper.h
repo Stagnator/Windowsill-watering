@@ -13,12 +13,12 @@
 /* Enums */
 
 //pumps status
-typedef enum STATUS_OF_PUMP {
+typedef enum  {
   OK,            // Ok (run)
   OUT_OF_WATER,  // Out of water (stop)
   SETUP,         // Setup mode
   LEAK_DT        // Leaking detected (stop)
-};
+} STATUS_OF_PUMP;
 
 
 #pragma pack(push, 1)
@@ -46,7 +46,7 @@ private:
   int sensPinNo, pumpPinNo;
   uint8_t alarmPinNo, buttonPinNo;
   uint8_t pumpNo;                  //number of pump
-  enum STATUS_OF_PUMP pumpStatus;  // status
+  STATUS_OF_PUMP pumpStatus;  // status
   tUnionSetting pumpSetup;         //myPump[i].pumpSetup.D.minM
   uint8_t currMoist;               //current moisture from capacitive sensor
 
@@ -66,7 +66,7 @@ public:
 
   void init();
   void stopIt();                  //Emergency stop of pumping
-  enum WATERING_RESULT pumpIt();  //Executive function
+  WATERING_RESULT pumpIt();  //Executive function
   void onePump();                 //One time of pamping cycle (for calibrating purposes)
   void pumpGo();                  //Just start pumping
   void setupPump();               //Manual Setup and write to EEPROM
