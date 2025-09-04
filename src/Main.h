@@ -29,6 +29,16 @@
 const int AirValue = 620;  //Calibration of sensors needed!
 const int WaterValue = 310; //Calibration of sensors needed!
 
+//Pins definitions
+static constexpr int pinOfSensor[NbOfPump] = { A0, A1, A2 };        //Pins connected to capacity sensors 1-2-3
+static constexpr int pinOfPump[NbOfPump] = { A3, A6, A7 };          //Pins connected to pump relays 1-2-3
+static constexpr uint8_t pinOfAlarmSensor[NbOfPump] = { 7, 8, 9 };  //Pins connected to leak resestive sensors 1-2-3 in digital mode
+static constexpr uint8_t pinOfCntrlButton[NbOfPump] = { 4, 5, 6 };  //Pins connected to control buttons 1-2-3
+static constexpr uint8_t pinOfEncoder[3] = { 10, 11, 12 };          //Pins connected to encoder (last number is encbutton)
+static constexpr uint8_t pinINT0StopButton = 2;                     //Pin of Emergency STOP button (and START too)
+static constexpr uint8_t pinINT1AlarmSensors = 3;                   //Pin of Emergency STOP form Resestive Leak Sensors
+static constexpr uint8_t pinAlarmLED = 13;                          //Pin of Alarm LED
+
 /* Enums */
 
 //machine status
