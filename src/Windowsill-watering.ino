@@ -21,8 +21,8 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
 OneButton encoderBtn (pinOfEncoder[2], true);
-CURR_STATUS currentStatus = STOP;
-WATERING_RESULT waterignResult = PASS;
+ECurrStatus currentStatus = _STOP;
+EWateringResult waterignResult = _PASS;
 
 PUMPER* myPump = new PUMPER[NbOfPump];
 
@@ -32,7 +32,7 @@ void startStop() {
 }
 
 void leakAlarm() {
-  currentStatus = ALARM;
+  currentStatus = _ALARM;
 }
 
 void setup() {
@@ -67,7 +67,7 @@ void setup() {
     myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]);  //Как получить i из класса не передавая его явно?
     //pumpBtn[i].setup(pinOfCntrlButton[i], INPUT_PULLUP, true);
   }
-  currentStatus = RUN;
+  currentStatus = _RUN;
 }
 
 void loop() {

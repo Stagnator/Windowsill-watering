@@ -46,7 +46,7 @@ void PUMPER::stopIt() {
   digitalWrite(pumpPinNo, LOW);
 } //
 
-WATERING_RESULT PUMPER::pumpIt() {
+EWateringResult PUMPER::pumpIt() {
   Serial.print("Pump number ");
   Serial.println(pumpNo);
   pumpBtn.tick();

@@ -1,8 +1,8 @@
 /*============================================================\
 |MAIN SETTINGS                                                |
 \============================================================*/
-#ifndef  Main_h
-#define  Main_h
+#ifndef  MAIN_H
+#define  MAIN_H
 //===================================== https://github.com/yuliskov/SmartTube/releases
 
 #define NbOfPump 3  //Quantity of pump units
@@ -43,19 +43,19 @@ static constexpr uint8_t pinAlarmLED = 13;                          //Pin of Ala
 
 //machine status
 typedef enum  {
-  STOP,        // System halted
-  RUN,         // Sysytem works
-  SETUP_MODE,  // System in setup mode
-  ALARM        // Leaking detected
-} CURR_STATUS;
+  _STOP,        // System halted
+  _RUN,         // Sysytem works
+  _SETUP_MODE,  // System in setup mode
+  _ALARM        // Leaking detected
+} ECurrStatus;
 
 // Result of watering attempt
 typedef enum  {
-  PASS,        // Dont need watering
-  DONE,        // Watering succesful
-  CANT_REACH,  // Watering failed
-  LEAK         // Leaking detected
-} WATERING_RESULT;
+  _PASS,        // Dont need watering
+  _DONE,        // Watering succesful
+  _CANT_REACH,  // Watering failed
+  _LEAK         // Leaking detected
+} EWateringResult;
 
 
 

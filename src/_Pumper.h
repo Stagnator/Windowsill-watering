@@ -2,8 +2,8 @@
 | PUMPER                                                      |
 \============================================================*/
 //=====================================
-#ifndef _Pumper_h
-#define _Pumper_h
+#ifndef PUMPER_H
+#define PUMPER_H
 //=====================================
 #include <Arduino.h>
 #include <EEPROM.h>
@@ -13,12 +13,12 @@
 /* Enums */
 
 //pumps status
-typedef enum  {
-  OK,            // Ok (run)
-  OUT_OF_WATER,  // Out of water (stop)
-  SETUP,         // Setup mode
-  LEAK_DT        // Leaking detected (stop)
-} STATUS_OF_PUMP;
+typedef enum {
+  _OK,            // Ok (run)
+  _OUT_OF_WATER,  // Out of water (stop)
+  _SETUP,         // Setup mode
+  _LEAK_DT        // Leaking detected (stop)
+} EStatusOfPump;
 
 
 #pragma pack(push, 1)
@@ -46,7 +46,7 @@ private:
   int sensPinNo, pumpPinNo;
   uint8_t alarmPinNo, buttonPinNo;
   uint8_t pumpNo;                  //number of pump
-  STATUS_OF_PUMP pumpStatus;  // status
+  EStatusOfPump pumpStatus;  // status
   tUnionSetting pumpSetup;         //myPump[i].pumpSetup.D.minM
   uint8_t currMoist;               //current moisture from capacitive sensor
 
@@ -66,7 +66,7 @@ public:
 
   void init();
   void stopIt();                  //Emergency stop of pumping
-  WATERING_RESULT pumpIt();  //Executive function
+  EWateringResult pumpIt();  //Executive function
   void onePump();                 //One time of pamping cycle (for calibrating purposes)
   void pumpGo();                  //Just start pumping
   void setupPump();               //Manual Setup and write to EEPROM
