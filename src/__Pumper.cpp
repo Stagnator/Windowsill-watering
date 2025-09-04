@@ -35,7 +35,7 @@ PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t 
 
 void PUMPER::init() {
     
-  if (isPumpLeak()) { pumpStatus = LEAK_DT; }
+  if (isPumpLeak()) { pumpStatus = _LEAK_DT; }
   
 
   pumpBtn.setLongPressIntervalMs(1000);
@@ -50,7 +50,7 @@ EWateringResult PUMPER::pumpIt() {
   Serial.print("Pump number ");
   Serial.println(pumpNo);
   pumpBtn.tick();
-  if (pumpStatus == OK) {
+  if (pumpStatus == _OK) {
     return PASS;
   } else {
     return LEAK;
@@ -80,7 +80,7 @@ return( map(soilMoistureValue, AirValue, WaterValue, 0, 100));
 void PUMPER::LongPressStart() {
   //Serial.print(((OneButton *)oneButton)->getPressedMs());
   Serial.println("\t - LongPressStart()");
-  if (pumpStatus == SETUP) {
+  if (pumpStatus == _SETUP) {
     setUpCounter = 0;
     pumpGo();
   }
