@@ -1,6 +1,6 @@
-//#define DEBUG
+// #define DEBUG
 //==========================================================//
-//Windowsill garden watering sysytem for three pumping zones//
+// Windowsill garden watering sysytem for three pumping zones//
 //==========================================================//
 
 /************************************************/
@@ -11,48 +11,118 @@
 #include <OneButton.h>
 #include <RotaryEncoder.h>
 #include <LiquidCrystal_I2C.h>
-#include "Main.h" //Main settings
+#include "Main.h"    //Main settings
 #include "_Pumper.h" //Class for pumper unit
 //------------------------------------------------
 
-
-
-//hardware assignements
+// hardware assignements
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
-OneButton encoderBtn (pinOfEncoder[2], true);
+OneButton encoderBtn(pinOfEncoder[2], true);
 ECurrStatus currentStatus = _STOP;
 EWateringResult waterignResult = _PASS;
 
-PUMPER* myPump = new PUMPER[NbOfPump];
+PUMPER *myPump = new PUMPER[NbOfPump];
 
-void startStop() {
-  int longPress = 1000;
-  longPress=longPress+1;
+void startStop()
+{
+  if (currentStatus == _STOP)
+  {
+    currentStatus = _RUN;
+    alarmLedOff();
+  }
+  else
+  {
+    currentStatus = _STOP;
+    for (uint8_t i = 0; i < NbOfPump; i++)
+    {
+     myPump[i].stopIt();
+    }
+    alarmLedOn();
+  }
 }
 
-void leakAlarm() {
+void leakAlarmOn()
+{
   currentStatus = _ALARM;
 }
 
-void setup() {
+
+
+void setup()
+{
   Wire.begin();
-  Serial.begin(115200);  // Init serial output for debug
-  while (!Serial) {}     // Needed only for built-in USB ports.
+  Serial.begin(115200); // Init serial output for debug
+  while (!Serial)
+  {
+  } // Needed only for built-in USB ports.
 
   pinMode(pinAlarmLED, OUTPUT);
 
   pinMode(pinINT0StopButton, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, FALLING);
+  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, RISING);
 
   pinMode(pinINT1AlarmSensors, INPUT);
-  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarm, HIGH);
+  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, RISING);
+  
   Serial.println("StartStart11");
 
+  lcd.init();
+  lcd.backlight();
   
-  //lcd.init();
-  //lcd.backlight();
-  /* Print a message to the LCD.
+
+  for (uint8_t i = 0; i < NbOfPump; i++)
+  {
+    myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]); // Как получить i из класса не передавая его явно?
+    myPump[i].init();
+    
+  }
+  currentStatus = _RUN;
+}
+
+void loop()
+{
+  if (currentStatus == _ALARM)
+  {
+    alalrmLedBlink();
+  }
+
+    
+  if (currentStatus == _RUN || currentStatus ==_ALARM)
+  {
+    for (uint8_t i = 0; i < NbOfPump; i++)
+    {
+      waterignResult = myPump[i].pumpIt();
+    }
+  }
+
+  if (currentStatus == _SETUP_MODE) {
+
+  }
+  
+  displayPrint(currentStatus);
+}
+
+void alarmLedBlink()
+{
+  digitalWrite(pinAlarmLED, HIGH);
+  delay(1000);
+  pinMode(pinAlarmLED, LOW);
+}
+
+void alarmLedOn()
+{
+  digitalWrite(pinAlarmLED, HIGH);
+}
+
+void alarmLedOff()
+{
+  digitalWrite(pinAlarmLED, LOW);
+}
+
+void displayPrint(ECurrStatus cStat)
+{
+/* Print a message to the LCD.
   lcd.setCursor(3,0);
   lcd.print("Hello, world!");
   lcd.setCursor(2,1);
@@ -61,31 +131,4 @@ void setup() {
   lcd.print("Arduino LCM IIC 2004");
    lcd.setCursor(2,3);
   lcd.print("Power By Ec-yuan!");*/
-
-
-  for (uint8_t i = 0; i < NbOfPump; i++) {
-    myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]);  //Как получить i из класса не передавая его явно?
-    //pumpBtn[i].setup(pinOfCntrlButton[i], INPUT_PULLUP, true);
-  }
-  currentStatus = _RUN;
-}
-
-void loop() {
-  for (uint8_t i = 0; i < NbOfPump; i++) {
-    waterignResult = myPump[i].pumpIt();
-  }
-}
-
-void alarmLedBlink() {
-  digitalWrite(pinAlarmLED, HIGH);
-  delay(1000);
-  pinMode(pinAlarmLED, LOW);
-}
-
-void alarmLedOn() {
-  digitalWrite(pinAlarmLED, HIGH);
-}
-
-void alarmLedOff() {
-  digitalWrite(pinAlarmLED, LOW);
 }

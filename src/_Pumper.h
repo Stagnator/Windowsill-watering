@@ -14,8 +14,8 @@
 
 //pumps status
 typedef enum {
-  _OK,            // Ok (run)
-  _OUT_OF_WATER,  // Out of water (stop)
+  _OK,            // Ok (can operate)
+  _OUT_OF_WATER,  // Out of water (cant operate)
   _SETUP,         // Setup mode
   _LEAK_DT        // Leaking detected (stop)
 } EStatusOfPump;
@@ -37,6 +37,14 @@ union tUnionSetting {
   byte B[sizeof(pumpSetting)];
 };
 
+// constants
+
+//initial data for pumping setting
+static constexpr uint8_t minMst[NbOfPump] = { 20, 20, 20 };        //Moisture to start pumping 1-2-3 pumps
+static constexpr uint8_t maxMst[NbOfPump] = { 60, 60, 60 };          //Moisture to stop pumping
+static constexpr uint8_t pumpTimeOfOneRun[NbOfPump] = { 5, 5, 5 };  //Time of one pamping attempt
+static constexpr uint8_t pumpPauseBtwin[NbOfPump] = { 10, 10, 10 };  //Time of pause betwing attempts
+static constexpr uint8_t pumpCyclesToReach[NbOfPump] = { 10, 10, 10 }; //Number of max try to rech desired mouisture
 
 
 //=====================================

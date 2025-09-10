@@ -51,7 +51,7 @@ EWateringResult PUMPER::pumpIt() {
   Serial.println(pumpNo);
   pumpBtn.tick();
   if (pumpStatus == _OK) {
-    return PASS;
+    return _PASS;
   } else {
     return LEAK;
   }
