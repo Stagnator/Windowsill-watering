@@ -7,12 +7,15 @@
 #define SketchVersion v4_20250811
 /************************************************/
 
+#include <Arduino.h>
+#include <EEPROM.h>
 #include <Wire.h>
 #include <OneButton.h>
 #include <RotaryEncoder.h>
 #include <LiquidCrystal_I2C.h>
+
 #include "Main.h"    //Main settings
-#include "_Pumper.h" //Class for pumper unit
+#include "_Pumper.h" //Class and setup for pumper unit
 //------------------------------------------------
 
 // hardware assignements
@@ -22,7 +25,7 @@ OneButton encoderBtn(pinOfEncoder[2], true);
 ECurrStatus currentStatus = _STOP;
 EWateringResult waterignResult = _PASS;
 
-PUMPER *myPump = new PUMPER[NbOfPump];
+PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 
 void startStop()
 {
@@ -34,9 +37,9 @@ void startStop()
   else
   {
     currentStatus = _STOP;
-    for (uint8_t i = 0; i < NbOfPump; i++)
+    for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     {
-     myPump[i].stopIt();
+      myPump[i].stopIt();
     }
     alarmLedOn();
   }
@@ -46,8 +49,6 @@ void leakAlarmOn()
 {
   currentStatus = _ALARM;
 }
-
-
 
 void setup()
 {
@@ -64,20 +65,24 @@ void setup()
 
   pinMode(pinINT1AlarmSensors, INPUT);
   attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, RISING);
-  
+
   Serial.println("StartStart11");
 
   lcd.init();
   lcd.backlight();
-  
 
-  for (uint8_t i = 0; i < NbOfPump; i++)
+  currentStatus = _RUN;
+
+  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
   {
     myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]); // Как получить i из класса не передавая его явно?
     myPump[i].init();
-    
+    if (myPump[i].pumpStatus == _LEAK_DT)
+    {
+      currentStatus = _ALARM;
+    }
   }
-  currentStatus = _RUN;
+  displayPrint(currentStatus);
 }
 
 void loop()
@@ -87,19 +92,19 @@ void loop()
     alalrmLedBlink();
   }
 
-    
-  if (currentStatus == _RUN || currentStatus ==_ALARM)
+  if (currentStatus == _RUN || currentStatus == _ALARM)
   {
-    for (uint8_t i = 0; i < NbOfPump; i++)
+    for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     {
       waterignResult = myPump[i].pumpIt();
+      displayPrint(currentStatus);
     }
   }
 
-  if (currentStatus == _SETUP_MODE) {
-
+  if (currentStatus == _SETUP_MODE)
+  {
   }
-  
+
   displayPrint(currentStatus);
 }
 
@@ -122,13 +127,13 @@ void alarmLedOff()
 
 void displayPrint(ECurrStatus cStat)
 {
-/* Print a message to the LCD.
-  lcd.setCursor(3,0);
-  lcd.print("Hello, world!");
-  lcd.setCursor(2,1);
-  lcd.print("Ywrobot Arduino!");
-   lcd.setCursor(0,2);
-  lcd.print("Arduino LCM IIC 2004");
-   lcd.setCursor(2,3);
-  lcd.print("Power By Ec-yuan!");*/
+  /* Print a message to the LCD.
+    lcd.setCursor(3,0);
+    lcd.print("Hello, world!");
+    lcd.setCursor(2,1);
+    lcd.print("Ywrobot Arduino!");
+     lcd.setCursor(0,2);
+    lcd.print("Arduino LCM IIC 2004");
+     lcd.setCursor(2,3);
+    lcd.print("Power By Ec-yuan!");*/
 }
