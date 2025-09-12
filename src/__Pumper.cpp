@@ -40,6 +40,11 @@ void PUMPER::init()
   }
 }
 
+void PUMPER::pumpGo()
+{
+  digitalWrite(pumpPinNo, HIGH);
+}
+
 void PUMPER::stopIt()
 {
   digitalWrite(pumpPinNo, LOW);
@@ -50,9 +55,23 @@ EWateringResult PUMPER::pumpIt()
   Serial.print("Pump number ");
   Serial.println(pumpNo);
   pumpBtn.tick();
+  if (isPumpLeak())
+  {
+    pumpStatus = _LEAK_DT;
+    return _LEAK;
+  }
+  
   if (pumpStatus == _OK)
   {
-    return _PASS;
+    readMoisture();
+    if (currMoist < pumpSetup.minM)
+    {
+      return _DONE;
+    }
+    else
+    {
+      return _PASS;
+    }
   }
   else
   {
@@ -65,11 +84,6 @@ void PUMPER::onePump()
   digitalWrite(pumpPinNo, HIGH);
   delay(pumpSetup.D.pumpTime * 1000);
   digitalWrite(pumpPinNo, LOW);
-} //
-
-void PUMPER::pumpGo()
-{
-  digitalWrite(pumpPinNo, HIGH);
 } //
 
 bool PUMPER::isPumpLeak()
@@ -85,12 +99,12 @@ void readMoisture()
 
 uint8_t PUMPER::getMoisture()
 {
-  return (currMoist);
+  return currMoist;
 }
 
 uint8_t getDesiredMoisture()
 {
-  return (pumpSetup.maxM);
+  return pumpSetup.maxM;
 }
 //-------------------------------------button----------------
 void PUMPER::LongPressStart()

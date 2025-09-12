@@ -55,28 +55,15 @@ private:
   EStatusOfPump pumpStatus; // status
   tUnionSetting pumpSetup;  // myPump[i].pumpSetup.D.minM
   uint8_t currMoist;        // current moisture from capacitive sensor
-
+  uint8_t setUpCounter;     // Temporary for pump time count in sec
 
   void readMoisture(); // Refresh current moisture from capacity sensor 0-100%
   void onePump();      // One time of shot pamping (for calibrating purposes)
-  void pumpGo();       // Just start pumping to rech desire moisture
+  void pumpGo();       // Just start pumping
   void setupPump();    // Manual Setup and write to EEPROM (under constraction)
   bool isPumpLeak();   // Return leak sensor status
-
-public:
-  /* Constructors */
-  PUMPER();
-  explicit PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin);
-
-  /* Basic settings */
-
-  void init();
-  void stopIt();            // Emergency stop of pumping
-  EWateringResult pumpIt(); // Pump if moisture low
-
-  uint8_t getMoisture();        // Return current moisture
-  uint8_t getDesiredMoisture(); // Return desired moisture
-
+  void readDataEPR();
+  void writeDataEPR();
   // Pump button functions
   void LongPressStart();
   void LongPressStop();
@@ -84,11 +71,17 @@ public:
   void ClickFunction();
   void DoubleClickFunction();
 
-protected:
-  uint8_t setUpCounter; // Temporary for pump time count in sec
+public:
+  /* Constructors */
+  PUMPER();
+  explicit PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin);
 
-  void readDataEPR();
-  void writeDataEPR();
+  /* Methods */
+  void init();
+  void stopIt();            // (Emergency) Stop of pumping
+  EWateringResult pumpIt(); // Pump if moisture low
+  uint8_t getMoisture();        // Return current moisture
+  uint8_t getDesiredMoisture(); // Return desired moisture
 
 }; // class
 //========================================
