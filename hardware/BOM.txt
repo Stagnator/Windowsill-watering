@@ -1,1 +1,1 @@
-Arduino Nano (AtMega32p)
+Arduino Nano (AtMega328p)
