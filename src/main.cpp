@@ -29,11 +29,11 @@
 \=============================================*/
 
 // Capacitive Sensor RAW data
-// Dry: (520 430]
+// Dry: (565 430]
 // Wet: (430 350]
-// Water: (350 260]
-static constexpr int AirValue = 620;   // Calibration of sensors needed! 4096 !!!
-static constexpr int WaterValue = 310; // Calibration of sensors needed!
+// Water: (350 205]
+static constexpr int AirValue = 565;   // Calibration of sensors needed!
+static constexpr int WaterValue = 205; // Calibration of sensors needed!
 
 // Pins definitions
 static constexpr int pinOfSensor[NB_OF_PUMPS] = {A3, A6, A7};       // Pins connected to capacity sensors 1-2-3
