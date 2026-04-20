@@ -7,6 +7,7 @@
 #define SketchVersion v5_20260420
 /************************************************/
 
+// #define USE_LGT_EEPROM_API
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <Wire.h>
@@ -17,53 +18,78 @@
 #include "_Pumper.h" //Class and setup for pumper unit
 //------------------------------------------------
 
-#define NB_OF_PUMPS 3  //Quantity of pump units
+#define NB_OF_PUMPS 3 // Quantity of pump units
 /*=============================================\
 |One Unit include:                             |
 | -Capacitive Moisture Sensor (analog input)   |
-| -Resestive Sensor for watertank              |
+| -Resestive Sensor for watertank's            |
 |    empty control (HIGH is empty)             |
 | -Pump ON/OFF reley                           |
 | -Pump control button                         |
 \=============================================*/
 
+// Capacitive Sensor RAW data
+// Dry: (520 430]
+// Wet: (430 350]
+// Water: (350 260]
+static constexpr int AirValue = 620;   // Calibration of sensors needed! 4096 !!!
+static constexpr int WaterValue = 310; // Calibration of sensors needed!
 
-//Capacitive Sensor RAW data
-//Dry: (520 430]
-//Wet: (430 350]
-//Water: (350 260]
-static constexpr int AirValue = 620;  //Calibration of sensors needed!
-static constexpr int WaterValue = 310; //Calibration of sensors needed!
+// Pins definitions
+static constexpr int pinOfSensor[NB_OF_PUMPS] = {A3, A6, A7};       // Pins connected to capacity sensors 1-2-3
+static constexpr int pinOfPump[NB_OF_PUMPS] = {A0, A1, A2};         // Pins connected to pump relays 1-2-3
+static constexpr uint8_t pinOfAlarmSensor[NB_OF_PUMPS] = {7, 8, 9}; // Pins connected to leak resestive sensors 1-2-3 in digital mode
+static constexpr uint8_t pinOfCntrlButton[NB_OF_PUMPS] = {4, 5, 6}; // Pins connected to control buttons 1-2-3
+static constexpr uint8_t pinOfEncoder[3] = {10, 11, 12};            // Pins connected to encoder (A, B, last number is encbutton)
+static constexpr uint8_t pinINT0StopButton = 2;                     // Pin of Emergency STOP button (and START too)
+static constexpr uint8_t pinINT1AlarmSensors = 3;                   // Pin of Emergency STOP form Resestive Leak Sensors
+static constexpr uint8_t pinAlarmLED = 13;                          // Pin of Alarm LED
+// A4 - SDA, A5 - SCL, LCD con
 
-//Pins definitions
-static constexpr int pinOfSensor[NB_OF_PUMPS] = { A3, A6, A7 };        //Pins connected to capacity sensors 1-2-3
-static constexpr int pinOfPump[NB_OF_PUMPS] = { A0, A1, A2 };          //Pins connected to pump relays 1-2-3
-static constexpr uint8_t pinOfAlarmSensor[NB_OF_PUMPS] = { 7, 8, 9 };  //Pins connected to leak resestive sensors 1-2-3 in digital mode
-static constexpr uint8_t pinOfCntrlButton[NB_OF_PUMPS] = { 4, 5, 6 };  //Pins connected to control buttons 1-2-3
-static constexpr uint8_t pinOfEncoder[3] = { 10, 11, 12 };          //Pins connected to encoder (A, B, last number is encbutton)
-static constexpr uint8_t pinINT0StopButton = 2;                     //Pin of Emergency STOP button (and START too)
-static constexpr uint8_t pinINT1AlarmSensors = 3;                   //Pin of Emergency STOP form Resestive Leak Sensors
-static constexpr uint8_t pinAlarmLED = 13;                          //Pin of Alarm LED
-// A4 - SDA, A5 - SCL, LCD con  
+static constexpr uint8_t maxPumpCykles = 50; // Max count of pump cykles
 
 /* Enums */
 
-//machine status
-typedef enum  {
-  _STOP,        // System halted
-  _RUN,         // Sysytem works
-  _SETUP_MODE,  // System in setup mode
-  _ALARM        // Leaking detected
+// machine status
+typedef enum
+{
+  _STOP,       // System halted
+  _RUN,        // Sysytem works
+  _SETUP_MODE, // System in setup mode
+  _ALARM       // Leaking detected
 } ECurrStatus;
 
 // Result of watering attempt
-typedef enum  {
-  _PASS,        // Dont need watering
-  _DONE,        // Watering succesful
-  _CANT_REACH,  // Watering failed
-  _LEAK         // Leaking detected
+typedef enum
+{
+  _PASS,       // Dont need watering
+  _DONE,       // Watering succesful
+  _CANT_REACH, // Watering failed
+  _LEAK        // Leaking detected
 } EWateringResult;
 
+#pragma pack(push, 1)
+struct pumpSetting
+{
+  uint8_t minM; // Min moisture to start watering
+  uint8_t maxM; // Max moisture to stop watering
+  uint8_t pumpTime; // Time of pumping in seconds
+  uint8_t pumpPause; // Time of pause between pump cykles in seconds
+}; // 4 bytes (32 bits)
+#pragma pack(pop)
+
+union tUnionSetting
+{
+  pumpSetting D;
+  byte B[sizeof(pumpSetting)];
+};
+
+// initial data for pumping setting
+tUnionSetting initPumpSetup[NB_OF_PUMPS]{
+    // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src), PumpCycls
+    {{20, 60, 2, 10}},
+    {{20, 60, 2, 10}},
+    {{20, 60, 2, 10}}}; // array of pumps settings
 //=====================================
 
 // hardware assignements
@@ -74,6 +100,28 @@ ECurrStatus currentStatus = _STOP;
 EWateringResult waterignResult = _PASS;
 
 PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
+
+unsigned int storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
+const unsigned int WRITTEN_SIGNATURE = 0xBEEFDEED;
+tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS];
+
+void memoryRead()
+{
+  // Check signature at address
+  unsigned int a = 0;
+  EEPROM.get(storedAddress, a);
+  if (a != WRITTEN_SIGNATURE)
+  {
+    EEPROM.put(0, initPumpSetup);
+    EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
+  }
+  EEPROM.get(0, pumpSetupFromEPR);
+}
+
+void memoryWrite(int i)
+{
+  EEPROM.put(0+i*sizeof(tUnionSetting), pumpSetupFromEPR[i]);
+}
 
 void startStop()
 {

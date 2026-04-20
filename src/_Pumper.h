@@ -17,32 +17,11 @@ typedef enum
   _LEAK_DT       // Leaking detected (stop)
 } EStatusOfPump;
 
-#pragma pack(push, 1)
-struct pumpSetting
-{
-  uint8_t pumpNumber; // 0-1-2
-  uint8_t minM;
-  uint8_t maxM;
-  uint8_t pumpTime;
-  uint8_t pumpPause;
-  uint8_t pumpCycls;
-}; // 6 bytes
-#pragma pack(pop)
 
-union tUnionSetting
-{
-  pumpSetting D;
-  byte B[sizeof(pumpSetting)];
-};
 
 // constants
 
-// initial data for pumping setting
-tUnionSetting initPumpSetup[NB_OF_PUMPS]{
-    // PumpNumber, MinM(%), MaxM(%), PumpTime(sec), PumpPause(src), PumpCycls
-    {{0, 20, 60, 5, 10, 10}},
-    {{1, 20, 60, 5, 10, 10}},
-    {{2, 20, 60, 5, 10, 10}}}; // array of pumps settings
+
 
 //=====================================
 class PUMPER
@@ -60,10 +39,10 @@ private:
   void readMoisture(); // Refresh current moisture from capacity sensor 0-100%
   void onePump();      // One time of shot pamping (for calibrating purposes)
   void pumpGo();       // Just start pumping
-  void setupPump();    // Manual Setup and write to EEPROM (under constraction)
-  bool isPumpLeak();   // Return leak sensor status
+  
+  bool isStorageEmpty();   // Check if water storage is empty (for resistive sensor)
   void readDataEPR();
-  void writeDataEPR();
+  
   // Pump button functions
   void LongPressStart();
   void LongPressStop();

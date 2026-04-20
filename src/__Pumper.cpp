@@ -86,7 +86,7 @@ void PUMPER::onePump()
   digitalWrite(pumpPinNo, LOW);
 } //
 
-bool PUMPER::isPumpLeak()
+bool PUMPER::isStorageEmpty()
 {
   return digitalRead(alarmPinNo);
 } //
