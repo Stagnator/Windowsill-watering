@@ -28,7 +28,7 @@ PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t 
 
 void PUMPER::init()
 {
-  pumpStatus = _OK;
+  pumpStatus = _WAITING;
   currMoist = 0;
   readMoisture();
   readDataEPR();
@@ -100,6 +100,11 @@ void readMoisture()
 uint8_t PUMPER::getMoisture()
 {
   return currMoist;
+}
+
+EStatusOfPump PUMPER::getStatus()
+{
+    return EStatusOfPump();
 }
 
 uint8_t getDesiredMoisture()

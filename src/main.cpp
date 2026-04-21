@@ -4,7 +4,7 @@
 //==========================================================//
 
 /************************************************/
-#define SketchVersion "v5_20260420"
+#define SketchVersion "v 0.30"
 /************************************************/
 
 // #define USE_LGT_EEPROM_API
@@ -45,9 +45,9 @@ static constexpr uint8_t pinOfEncoder[3] = {10, 11, 12};            // Pins conn
 static constexpr uint8_t pinINT0StopButton = 2;                     // Pin of Emergency STOP button (and START too)
 static constexpr uint8_t pinINT1AlarmSensors = 3;                   // Pin of Emergency STOP form Resestive Leak Sensors
 static constexpr uint8_t pinAlarmLED = 13;                          // Pin of Alarm LED
-// A4 - SDA, A5 - SCL, LCD con
+// A4 - SDA, A5 - SCL, LCD connection
 
-static constexpr uint8_t maxPumpCykles = 50; // Max count of pump cykles
+static constexpr uint8_t maxPumpCykles = 50; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
 
 /* Enums */
 
@@ -60,22 +60,13 @@ typedef enum
   _ALARM       // Leaking detected
 } ECurrStatus;
 
-// Result of watering attempt
-typedef enum
-{
-  _PASS,       // Dont need watering
-  _DONE,       // Watering succesful
-  _CANT_REACH, // Watering failed
-  _LEAK        // Leaking detected
-} EWateringResult;
-
 #pragma pack(push, 1)
 struct pumpSetting
 {
-  uint8_t minM;      // Min moisture to start watering
-  uint8_t maxM;      // Max moisture to stop watering
-  uint8_t pumpTime;  // Time of pumping in seconds
-  uint8_t pumpPause; // Time of pause between pump cykles in seconds
+  uint8_t minM;      // Min moisture to start watering (0-99)
+  uint8_t maxM;      // Max moisture to stop watering (0-99)
+  uint8_t pumpTime;  // Time of pumping in seconds (0-10)
+  uint8_t pumpPause; // Time of pause between pump cykles in seconds (0-20)
 }; // 4 bytes (32 bits)
 #pragma pack(pop)
 
@@ -99,20 +90,24 @@ static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo",
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
 OneButton encoderBtn(pinOfEncoder[2], true);
-int selectedPump = 0;
-int settingIndex = 0;
+// Global variables
+uint8_t selectedPump = 0;
+uint8_t settingIndex = 0;
+unsigned long previousMillis = 0;
+bool ledState = LOW;
+String oldString1, oldString2;
+String newString1, newString2;
 ECurrStatus currentStatus = _STOP;
-EWateringResult waterignResult = _PASS;
 
 PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 
-unsigned int storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
 const unsigned int WRITTEN_SIGNATURE = 0xBEEFDEED;
-tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS];
+tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
 
-void memoryRead()
+void memoryInit()
 {
   // Check signature at address
+  unsigned int storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
   unsigned int a = 0;
   EEPROM.get(storedAddress, a);
   if (a != WRITTEN_SIGNATURE)
@@ -121,6 +116,20 @@ void memoryRead()
     EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
   }
   EEPROM.get(0, pumpSetupFromEPR);
+  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+  {
+    Serial.print("Pump read from EEPROM, pump ");
+    Serial.print(i);
+    Serial.print(": ");
+    Serial.print(pumpSetupFromEPR[i].D.minM);
+    Serial.print("%, ");
+    Serial.print(pumpSetupFromEPR[i].D.maxM);
+    Serial.print("%, ");
+    Serial.print(pumpSetupFromEPR[i].D.pumpTime);
+    Serial.print("s, ");
+    Serial.print(pumpSetupFromEPR[i].D.pumpPause);
+    Serial.println("s");
+  }
 }
 
 void startStop()
@@ -128,16 +137,10 @@ void startStop()
   if (currentStatus == _STOP)
   {
     currentStatus = _RUN;
-    alarmLedOff();
   }
   else
   {
     currentStatus = _STOP;
-    for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-    {
-      myPump[i].stopIt();
-    }
-    alarmLedOn();
   }
 }
 
@@ -146,38 +149,95 @@ void leakAlarmOn()
   currentStatus = _ALARM;
 }
 
+void displayInitPrint()
+{
+  lcd.setCursor(0, 0);
+  lcd.print("Windowsill Water");
+  lcd.setCursor(0, 1);
+  lcd.print("Stagnator ");
+  lcd.print(SketchVersion);
+  delay(2000);
+}
+
+// M% 99 55 33 44 5
+// ST SP 66 22 ER WT
+// STOP RUN WAIT ERROR WATER
 void handleLCD()
 {
-  String oldString1, oldString2;
-  String newString1, newString2;
+  newString1 = "M% ";
+  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+  {
+    newString1 += String(myPump[i].getMoisture());
+    if (i < NB_OF_PUMPS - 1)
+      newString1 += " ";
+  }
   switch (currentStatus)
   {
   case _STOP:
-    newString1 = "System STOPPED";
-    newString2 = "Press START";
+    newString1 += " STOP";
     break;
   case _RUN:
-    newString1 = "System RUNNING";
-    newString2 = "All is OK";
+    newString1 += " RUN";
     break;
   case _SETUP_MODE:
-    newString1 = "SETUP MODE";
-    newString2 = "Use encoder";
+    newString1 += " SET";
     break;
   case _ALARM:
-    newString1 = "LEAKING DETECTED!";
-    newString2 = "Check sensors!";
+    newString1 += " ALRM";
     break;
   }
-  if (newString1 != oldString1 || newString2 != oldString2)
+  if (newString1 != oldString1)
   {
-    lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print(newString1.c_str());
+    oldString1 = newString1;
+  }
+
+  newString2 = "ST ";
+
+  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+  {
+    switch (myPump[i].getStatus())
+    {
+    case _WAITING:
+      newString2 += String(myPump[i].getMoisture());
+      break;
+    case _RUNNING:
+      newString2 += String(myPump[i].getMoisture());
+      break;
+    case _OUT_OF_WATER:
+      newString2 += "WT";
+      alarmLedBlink(1000);
+      break;
+    case _STOP_PUMP:
+      newString2 += "SP";
+      break;
+    case _ERROR:
+      newString2 += "ER";
+      alarmLedBlink(500);
+      break;
+    }
+    if (i < NB_OF_PUMPS - 1)
+      newString2 += " ";
+  }
+
+  if (newString2 != oldString2)
+  {
     lcd.setCursor(0, 1);
     lcd.print(newString2.c_str());
-    oldString1 = newString1;
     oldString2 = newString2;
+  }
+}
+
+// Non-blocking LED blink using millis()
+void alarmLedBlink(unsigned long interval)
+{
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval)
+  {
+    previousMillis = currentMillis;
+    ledState = !ledState;
+    digitalWrite(pinAlarmLED, ledState);
   }
 }
 
@@ -186,36 +246,23 @@ void setup()
   Wire.begin();
   Serial.begin(115200); // Init serial output for debug
   while (!Serial)
-  {
-  } // Needed only for built-in USB ports.
+    ; // Needed only for built-in USB ports.
 
   pinMode(pinAlarmLED, OUTPUT);
 
-  pinMode(pinINT0StopButton, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, FALLING);
-
-  pinMode(pinINT1AlarmSensors, INPUT);
-  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
-
   Serial.println("StartStart_ver: " + String(SketchVersion));
-
+  memoryInit();
   lcd.init();
   lcd.backlight();
   // lcd.noBacklight();
 
-  currentStatus = _RUN;
-
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-  {
-    myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]); // Как получить i из класса не передавая его явно?
+    myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]);
+  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     myPump[i].init();
-    if (myPump[i].pumpStatus == _LEAK_DT)
-    {
-      currentStatus = _ALARM;
-    }
-  }
-  displayPrint(currentStatus);
- 
+
+  displayInitPrint();
+
   // Setup encoder button
   encoderBtn.setLongPressIntervalMs(800);
   encoderBtn.attachClick([]()
@@ -252,73 +299,49 @@ void setup()
       selectedPump = 0;
     }
     encoder.setPosition(pumpSetupFromEPR[selectedPump].B[settingIndex]); });
+
+  currentStatus = _RUN;
+
+  pinMode(pinINT0StopButton, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, FALLING);
+
+  pinMode(pinINT1AlarmSensors, INPUT);
+  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
 }
 
 void loop()
 {
   if (currentStatus == _ALARM)
   {
-    alalrmLedBlink();
+    for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+      myPump[i].stopIt();
+    alarmLedBlink(200);
   }
 
-  if (currentStatus == _RUN || currentStatus == _ALARM)
+  if (currentStatus == _RUN)
+  {
+    ledState = LOW;
+    digitalWrite(pinAlarmLED, ledState);
+    for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+      myPump[i].pumpIt();
+  }
+
+  if (currentStatus == _STOP)
   {
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-    {
-      waterignResult = myPump[i].pumpIt();
-      displayPrint(currentStatus);
-    }
+      myPump[i].stopIt();
+    ledState = HIGH;
+    digitalWrite(pinAlarmLED, ledState);
   }
 
   if (currentStatus == _SETUP_MODE)
-  {
-  }
-
-  displayPrint(currentStatus);
-}
-
-void alarmLedBlink()
-{
-  digitalWrite(pinAlarmLED, HIGH);
-  delay(1000);
-  pinMode(pinAlarmLED, LOW);
-}
-
-void alarmLedOn()
-{
-  digitalWrite(pinAlarmLED, HIGH);
-}
-
-void alarmLedOff()
-{
-  digitalWrite(pinAlarmLED, LOW);
-}
-
-void displayPrint(ECurrStatus cStat)
-{
-  /* Print a message to the LCD.
-    lcd.setCursor(3,0);
-    lcd.print("Hello, world!");
-    lcd.setCursor(2,1);
-    lcd.print("Ywrobot Arduino!");
-     lcd.setCursor(0,2);
-    lcd.print("Arduino LCM IIC 2004");
-     lcd.setCursor(2,3);
-    lcd.print("Power By Ec-yuan!");*/
-}
-
-// Function to modify pump settings interactively
-void modifyPumpSettings()
-{
-
-  while (true)
   {
     encoder.tick();
 
     int oldValue;
     int newValue = encoder.getPosition();
 
-    pumpSetupFromEPR[selectedPump].settings[settingIndex] = newValue;
+    pumpSetupFromEPR[selectedPump].B[settingIndex] = newValue;
 
     lcd.setCursor(0, 0);
     lcd.print("Pump: ");
@@ -329,8 +352,8 @@ void modifyPumpSettings()
     lcd.print(": ");
     lcd.print(newValue);
     oldValue = newValue;
-
-    delay(100);
-    encoderBtn.tick();
   }
+
+  handleLCD();
+  encoderBtn.tick();
 }
