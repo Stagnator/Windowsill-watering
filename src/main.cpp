@@ -4,7 +4,7 @@
 //==========================================================//
 
 /************************************************/
-#define SketchVersion v5_20260420
+#define SketchVersion "v5_20260420"
 /************************************************/
 
 // #define USE_LGT_EEPROM_API
@@ -16,6 +16,7 @@
 #include <LiquidCrystal_I2C.h>
 
 #include "_Pumper.h" //Class and setup for pumper unit
+
 //------------------------------------------------
 
 #define NB_OF_PUMPS 3 // Quantity of pump units
@@ -71,9 +72,9 @@ typedef enum
 #pragma pack(push, 1)
 struct pumpSetting
 {
-  uint8_t minM; // Min moisture to start watering
-  uint8_t maxM; // Max moisture to stop watering
-  uint8_t pumpTime; // Time of pumping in seconds
+  uint8_t minM;      // Min moisture to start watering
+  uint8_t maxM;      // Max moisture to stop watering
+  uint8_t pumpTime;  // Time of pumping in seconds
   uint8_t pumpPause; // Time of pause between pump cykles in seconds
 }; // 4 bytes (32 bits)
 #pragma pack(pop)
@@ -86,16 +87,20 @@ union tUnionSetting
 
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
-    // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src), PumpCycls
+    // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src)
     {{20, 60, 2, 10}},
     {{20, 60, 2, 10}},
     {{20, 60, 2, 10}}}; // array of pumps settings
+
+static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo", "MAXMo", "PumpTime", "PumpPause"};
 //=====================================
 
 // hardware assignements
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
 OneButton encoderBtn(pinOfEncoder[2], true);
+int selectedPump = 0;
+int settingIndex = 0;
 ECurrStatus currentStatus = _STOP;
 EWateringResult waterignResult = _PASS;
 
@@ -116,11 +121,6 @@ void memoryRead()
     EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
   }
   EEPROM.get(0, pumpSetupFromEPR);
-}
-
-void memoryWrite(int i)
-{
-  EEPROM.put(0+i*sizeof(tUnionSetting), pumpSetupFromEPR[i]);
 }
 
 void startStop()
@@ -146,6 +146,41 @@ void leakAlarmOn()
   currentStatus = _ALARM;
 }
 
+void handleLCD()
+{
+  String oldString1, oldString2;
+  String newString1, newString2;
+  switch (currentStatus)
+  {
+  case _STOP:
+    newString1 = "System STOPPED";
+    newString2 = "Press START";
+    break;
+  case _RUN:
+    newString1 = "System RUNNING";
+    newString2 = "All is OK";
+    break;
+  case _SETUP_MODE:
+    newString1 = "SETUP MODE";
+    newString2 = "Use encoder";
+    break;
+  case _ALARM:
+    newString1 = "LEAKING DETECTED!";
+    newString2 = "Check sensors!";
+    break;
+  }
+  if (newString1 != oldString1 || newString2 != oldString2)
+  {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(newString1.c_str());
+    lcd.setCursor(0, 1);
+    lcd.print(newString2.c_str());
+    oldString1 = newString1;
+    oldString2 = newString2;
+  }
+}
+
 void setup()
 {
   Wire.begin();
@@ -157,15 +192,16 @@ void setup()
   pinMode(pinAlarmLED, OUTPUT);
 
   pinMode(pinINT0StopButton, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, RISING);
+  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, FALLING);
 
   pinMode(pinINT1AlarmSensors, INPUT);
-  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, RISING);
+  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
 
-  Serial.println("StartStart11");
+  Serial.println("StartStart_ver: " + String(SketchVersion));
 
   lcd.init();
   lcd.backlight();
+  // lcd.noBacklight();
 
   currentStatus = _RUN;
 
@@ -179,6 +215,43 @@ void setup()
     }
   }
   displayPrint(currentStatus);
+ 
+  // Setup encoder button
+  encoderBtn.setLongPressIntervalMs(800);
+  encoderBtn.attachClick([]()
+                         {
+    settingIndex++;
+    if (settingIndex >= sizeof(tUnionSetting) / sizeof(int)) {
+      settingIndex = 0;
+    }
+    encoder.setPosition(pumpSetupFromEPR[selectedPump].B[settingIndex]); });
+
+  encoderBtn.attachDoubleClick([]()
+                               {
+                                 if (currentStatus != _SETUP_MODE)
+                                 {
+                                   settingIndex = 0;
+                                   selectedPump = 0;
+                                   encoder.setPosition(pumpSetupFromEPR[selectedPump].B[settingIndex]);
+                                   currentStatus = _SETUP_MODE;
+                                 }
+                                 else
+                                 {
+                                   EEPROM.put(0, pumpSetupFromEPR);
+                                   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+                                   {
+                                     myPump[i].init();
+                                   }
+                                   currentStatus = _RUN;
+                                 } });
+
+  encoderBtn.attachLongPressStart([]()
+                                  {
+    selectedPump++;
+    if (selectedPump >= NB_OF_PUMPS) {
+      selectedPump = 0;
+    }
+    encoder.setPosition(pumpSetupFromEPR[selectedPump].B[settingIndex]); });
 }
 
 void loop()
@@ -232,4 +305,32 @@ void displayPrint(ECurrStatus cStat)
     lcd.print("Arduino LCM IIC 2004");
      lcd.setCursor(2,3);
     lcd.print("Power By Ec-yuan!");*/
+}
+
+// Function to modify pump settings interactively
+void modifyPumpSettings()
+{
+
+  while (true)
+  {
+    encoder.tick();
+
+    int oldValue;
+    int newValue = encoder.getPosition();
+
+    pumpSetupFromEPR[selectedPump].settings[settingIndex] = newValue;
+
+    lcd.setCursor(0, 0);
+    lcd.print("Pump: ");
+    lcd.print(selectedPump);
+    lcd.setCursor(0, 1);
+    lcd.print("Setting ");
+    lcd.print(nameOfSetting[settingIndex]);
+    lcd.print(": ");
+    lcd.print(newValue);
+    oldValue = newValue;
+
+    delay(100);
+    encoderBtn.tick();
+  }
 }

@@ -58,7 +58,7 @@ public:
   /* Methods */
   void init();
   void stopIt();            // (Emergency) Stop of pumping
-  EWateringResult pumpIt(); // Pump if moisture low
+  EWateringResult pumpIt(); // handle Pump 
   uint8_t getMoisture();        // Return current moisture
   uint8_t getDesiredMoisture(); // Return desired moisture
 

@@ -31,9 +31,9 @@ void PUMPER::init()
   pumpStatus = _OK;
   currMoist = 0;
   readMoisture();
-  // readDataEPR();
-  pumpSetup = initPumpSetup[pumpNo];
-  pumpBtn.setLongPressIntervalMs(1000);
+  readDataEPR();
+  //pumpSetup = initPumpSetup[pumpNo];
+  pumpBtn.setLongPressIntervalMs(800);
   if (isPumpLeak())
   {
     pumpStatus = _LEAK_DT;
