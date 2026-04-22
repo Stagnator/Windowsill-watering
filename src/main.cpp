@@ -51,8 +51,6 @@ typedef enum
   _ALARM       // Leaking detected
 } ECurrStatus;
 
-
-
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
     // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src)
@@ -62,8 +60,6 @@ tUnionSetting initPumpSetup[NB_OF_PUMPS]{
 
 static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo", "MAXMo", "PumpTime", "PumpPause"};
 //=====================================
-
-
 
 // hardware assignements
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -136,13 +132,17 @@ void displayInitPrint()
   lcd.setCursor(0, 1);
   lcd.print("Stagnator ");
   lcd.print(SketchVersion);
+  ledState = HIGH;
+  digitalWrite(pinAlarmLED, ledState);
   delay(2000);
+  ledState = LOW;
+  digitalWrite(pinAlarmLED, ledState);
 }
 
 // M% 99 55 33 44 5
 // ST SP 66 22 ER WT
 // STOP RUN WAIT ERROR WATER
-void handleLCD()
+void handleLCDandLED()
 {
   newString1 = "M% ";
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
@@ -155,6 +155,7 @@ void handleLCD()
   {
   case _STOP:
     newString1 += " STOP";
+    alarmLedBlink(1000,200);
     break;
   case _RUN:
     newString1 += " RUN";
@@ -164,6 +165,7 @@ void handleLCD()
     break;
   case _ALARM:
     newString1 += " ALRM";
+    alarmLedBlink(200);
     break;
   }
   if (newString1 != oldString1)
@@ -180,21 +182,21 @@ void handleLCD()
     switch (myPump[i].getStatus())
     {
     case _WAITING:
-      newString2 += String(myPump[i].getMoisture());
+      newString2 += String(myPump[i].getDesiredMoisture()) + "W";
       break;
     case _RUNNING:
-      newString2 += String(myPump[i].getMoisture());
+      newString2 += String(myPump[i].getDesiredMoisture()) + "R";
       break;
     case _OUT_OF_WATER:
       newString2 += "WT";
-      alarmLedBlink(1000);
+      alarmLedBlink(200, 800);
       break;
     case _STOP_PUMP:
       newString2 += "SP";
       break;
     case _ERROR:
       newString2 += "ER";
-      alarmLedBlink(500);
+      alarmLedBlink(400);
       break;
     }
     if (i < NB_OF_PUMPS - 1)
@@ -215,9 +217,21 @@ void alarmLedBlink(unsigned long interval)
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval)
   {
-    previousMillis = currentMillis;
     ledState = !ledState;
     digitalWrite(pinAlarmLED, ledState);
+    previousMillis = currentMillis;
+  }
+}
+
+void alarmLedBlink(unsigned long onTime, unsigned long offTime)
+{
+  unsigned long currentMillis = millis();
+  unsigned long interval = ledState ? onTime : offTime;
+  if (currentMillis - previousMillis >= interval)
+  {
+    ledState = !ledState;
+    digitalWrite(pinAlarmLED, ledState);
+    previousMillis = currentMillis;
   }
 }
 
@@ -307,7 +321,7 @@ void setup()
 
   displayInitPrint();
   currentStatus = _RUN;
-  handleLCD();
+  handleLCDandLED();
 }
 
 void loop()
@@ -316,26 +330,21 @@ void loop()
   {
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
       myPump[i].stopIt();
-    alarmLedBlink(200);
-    handleLCD();
+      handleLCDandLED();
   }
 
   if (currentStatus == _RUN)
   {
-    ledState = LOW;
-    digitalWrite(pinAlarmLED, ledState);
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
       myPump[i].pumpIt();
-      handleLCD();
+    handleLCDandLED();
   }
 
   if (currentStatus == _STOP)
   {
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
       myPump[i].stopIt();
-    ledState = HIGH;
-    digitalWrite(pinAlarmLED, ledState);
-    handleLCD();
+    handleLCDandLED();
   }
 
   if (currentStatus == _SETUP_MODE)
@@ -365,6 +374,5 @@ void loop()
     }
   }
 
-  
   encoderBtn.tick();
 }

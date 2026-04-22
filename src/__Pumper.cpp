@@ -1,10 +1,11 @@
 #include <Arduino.h>
+#include <EEPROM.h>
 #include "_Pumper.h"
 
 PUMPER::PUMPER() {}
 
 PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin)
-    : pumpNo(i), pumpBtn(buttonPin, true), sensPinNo(sensPin), pumpPinNo(pumpPin), alarmPinNo(alarmPin)
+    : pumpNo(i), pumpBtn(buttonPin), sensPinNo(sensPin), pumpPinNo(pumpPin), alarmPinNo(alarmPin)
 {
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
@@ -30,6 +31,7 @@ PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t 
 void PUMPER::init()
 {
   pumpStatus = _WAITING;
+  pumpPinState = LOW;
   currMoist = 0;
   readMoisture();
   readDataEPR();
@@ -42,7 +44,8 @@ void PUMPER::init()
 
 void PUMPER::pumpGo()
 {
-  if (pumpStatus == _OUT_OF_WATER) pumpStatus = _WAITING;
+  if (pumpStatus == _OUT_OF_WATER)
+    pumpStatus = _WAITING;
   if (isStorageEmpty())
   {
     pumpStatus = _OUT_OF_WATER;
@@ -50,8 +53,13 @@ void PUMPER::pumpGo()
   }
   else
   {
-    pumpStatus = _RUNNING;
-  
+    if(pumpStatus == _WAITING)
+    {
+      pumpStatus = _RUNNING;
+    } else if (pumpStatus == _RUNNING)
+    {
+      pumpStatus = _WAITING;
+    }
   }
 }
 
@@ -63,16 +71,20 @@ void PUMPER::readMoisture()
 
 void PUMPER::onePump()
 {
-  if (pumpStatus == _OUT_OF_WATER) pumpStatus = _WAITING;
-  
+  if (pumpStatus == _OUT_OF_WATER)
+    pumpStatus = _WAITING;
+
   if (isStorageEmpty())
   {
     pumpStatus = _OUT_OF_WATER;
     return;
   }
-  digitalWrite(pumpPinNo, HIGH);
+  pumpPinState = HIGH;
+  digitalWrite(pumpPinNo, pumpPinState);
   delay(pumpSetup.D.pumpTime * 1000);
-  digitalWrite(pumpPinNo, LOW);
+  pumpPinState = LOW;
+  digitalWrite(pumpPinNo, pumpPinState);
+  
 } //
 
 bool PUMPER::isStorageEmpty()
@@ -82,7 +94,9 @@ bool PUMPER::isStorageEmpty()
 
 void PUMPER::stopIt()
 {
-  digitalWrite(pumpPinNo, LOW);
+  pumpStatus =  _STOP_PUMP;
+  pumpPinState = LOW;
+  digitalWrite(pumpPinNo, pumpPinState);
 } //
 
 void PUMPER::readDataEPR()
@@ -106,7 +120,7 @@ void PUMPER::pumpIt()
     pumpStatus = _LEAK_DT;
     return _LEAK;
   }
-  
+
   if (pumpStatus == _OK)
   {
     readMoisture();
@@ -125,12 +139,6 @@ void PUMPER::pumpIt()
   }
 }
 
-
-
-
-
-
-
 uint8_t PUMPER::getMoisture()
 {
   return currMoist;
@@ -138,12 +146,19 @@ uint8_t PUMPER::getMoisture()
 
 EStatusOfPump PUMPER::getStatus()
 {
-    return EStatusOfPump();
+  return EStatusOfPump();
 }
 
-uint8_t getDesiredMoisture()
+uint8_t PUMPER::getDesiredMoisture()
 {
-  return pumpSetup.maxM;
+  if (pumpStatus == _RUNNING)
+  {
+    return pumpSetup.D.maxM;
+  }
+  else
+  {
+    return pumpSetup.D.minM;
+  }
 }
 //-------------------------------------button----------------
 void PUMPER::LongPressStart()

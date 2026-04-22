@@ -55,6 +55,7 @@ private:
   tUnionSetting pumpSetup;  // pumpSetup.D.minM
   uint8_t currMoist;        // current moisture from capacitive sensor
   uint8_t runUpCounter;     // Runs up counter to avoid infinite pumping (for safety reasons)
+  bool pumpPinState = LOW;
   unsigned long previousRunMillis, previousPauseMillis; // For counting time in millis
 
   void readMoisture(); // +Refresh current moisture from capacity sensor 0-100%  
@@ -81,6 +82,7 @@ public:
   void stopIt();             // (Emergency) Stop of pumping
   void pumpIt();  // handle Pump
   uint8_t getMoisture();     // Return current moisture
+  uint8_t getDesiredMoisture(); // Return desired moisture level
   EStatusOfPump getStatus(); // Return status
 
 }; // class
