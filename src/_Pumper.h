@@ -19,8 +19,31 @@ typedef enum
 } EStatusOfPump;
 
 // constants
-
+// Capacitive Sensor RAW data
+// Dry: (565 430]
+// Wet: (430 350]
+// Water: (350 205]
+static constexpr int AirValue = 565;   // 100 % Calibration of sensors needed!
+static constexpr int WaterValue = 205; // 0% Calibration of sensors needed!
+static constexpr uint8_t maxPumpCykles = 50; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
 //=====================================
+
+#pragma pack(push, 1)
+struct pumpSetting
+{
+  uint8_t minM;      // Min moisture to start watering (0-99)
+  uint8_t maxM;      // Max moisture to stop watering (0-99)
+  uint8_t pumpTime;  // Time of pumping in seconds (0-10)
+  uint8_t pumpPause; // Time of pause between pump cykles in seconds (0-20)
+}; // 4 bytes (32 bits)
+#pragma pack(pop)
+
+union tUnionSetting
+{
+  pumpSetting D;
+  byte B[sizeof(pumpSetting)];
+};
+
 class PUMPER
 {
 private:
@@ -34,10 +57,10 @@ private:
   uint8_t runUpCounter;     // Runs up counter to avoid infinite pumping (for safety reasons)
   unsigned long previousRunMillis, previousPauseMillis; // For counting time in millis
 
-  void readMoisture(); // Refresh current moisture from capacity sensor 0-100%  
-  void onePump();      // One time of shot pamping (for calibrating purposes)
-  void pumpGo();       // Just start pumping to desired moisture level
-  bool isStorageEmpty(); // Check if water storage is empty (for resistive sensor)
+  void readMoisture(); // +Refresh current moisture from capacity sensor 0-100%  
+  void onePump();      // + One time of shot pamping (for calibrating purposes)
+  void pumpGo();       // + Just start pumping to desired moisture level
+  bool isStorageEmpty(); // +Check if water storage is empty (for resistive sensor)
   void readDataEPR(); // Read pump settings from EEPROM
   void diasablePump(); // Disable pump (for example, when leak is detected)
 

@@ -29,13 +29,6 @@
 | -Pump control button                         |
 \=============================================*/
 
-// Capacitive Sensor RAW data
-// Dry: (565 430]
-// Wet: (430 350]
-// Water: (350 205]
-static constexpr int AirValue = 565;   // 100 % Calibration of sensors needed!
-static constexpr int WaterValue = 205; // 0% Calibration of sensors needed!
-
 // Pins definitions
 static constexpr int pinOfSensor[NB_OF_PUMPS] = {A3, A6, A7};       // Pins connected to capacity sensors 1-2-3
 static constexpr int pinOfPump[NB_OF_PUMPS] = {A0, A1, A2};         // Pins connected to pump relays 1-2-3
@@ -46,8 +39,6 @@ static constexpr uint8_t pinINT0StopButton = 2;                     // Pin of Em
 static constexpr uint8_t pinINT1AlarmSensors = 3;                   // Pin of Emergency STOP form Resestive Leak Sensors
 static constexpr uint8_t pinAlarmLED = 13;                          // Pin of Alarm LED
 // A4 - SDA, A5 - SCL, LCD connection
-
-static constexpr uint8_t maxPumpCykles = 50; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
 
 /* Enums */
 
@@ -60,21 +51,7 @@ typedef enum
   _ALARM       // Leaking detected
 } ECurrStatus;
 
-#pragma pack(push, 1)
-struct pumpSetting
-{
-  uint8_t minM;      // Min moisture to start watering (0-99)
-  uint8_t maxM;      // Max moisture to stop watering (0-99)
-  uint8_t pumpTime;  // Time of pumping in seconds (0-10)
-  uint8_t pumpPause; // Time of pause between pump cykles in seconds (0-20)
-}; // 4 bytes (32 bits)
-#pragma pack(pop)
 
-union tUnionSetting
-{
-  pumpSetting D;
-  byte B[sizeof(pumpSetting)];
-};
 
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
@@ -85,6 +62,8 @@ tUnionSetting initPumpSetup[NB_OF_PUMPS]{
 
 static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo", "MAXMo", "PumpTime", "PumpPause"};
 //=====================================
+
+
 
 // hardware assignements
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -97,6 +76,7 @@ unsigned long previousMillis = 0;
 bool ledState = LOW;
 String oldString1, oldString2;
 String newString1, newString2;
+uint8_t oldValue, newValue;
 ECurrStatus currentStatus = _STOP;
 
 PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
@@ -241,6 +221,59 @@ void alarmLedBlink(unsigned long interval)
   }
 }
 
+void encBtnDoubleClick()
+{
+  if (currentStatus != _SETUP_MODE)
+  {
+    settingIndex = 0;
+    selectedPump = 0;
+    oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
+    encoder.setPosition(oldValue);
+    currentStatus = _SETUP_MODE;
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Pump N: ");
+    lcd.print(selectedPump + 1);
+    lcd.setCursor(0, 1);
+    lcd.print("Set ");
+    lcd.print(nameOfSetting[settingIndex]);
+    lcd.print(": ");
+    lcd.print(oldValue);
+    lcd.print("sec(%)");
+  }
+  else
+  {
+    EEPROM.put(0, pumpSetupFromEPR);
+    for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+    {
+      myPump[i].init();
+    }
+    currentStatus = _RUN;
+  }
+}
+
+void encBtnClick()
+{
+  settingIndex++;
+  if (settingIndex >= sizeof(tUnionSetting) / sizeof(int))
+  {
+    settingIndex = 0;
+  }
+  oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
+  encoder.setPosition(oldValue);
+}
+
+void encBtnLongPressStart()
+{
+  selectedPump++;
+  if (selectedPump >= NB_OF_PUMPS)
+  {
+    selectedPump = 0;
+  }
+  oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
+  encoder.setPosition(oldValue);
+}
+
 void setup()
 {
   Wire.begin();
@@ -261,52 +294,20 @@ void setup()
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     myPump[i].init();
 
-  displayInitPrint();
-
   // Setup encoder button
   encoderBtn.setLongPressIntervalMs(800);
-  encoderBtn.attachClick([]()
-                         {
-    settingIndex++;
-    if (settingIndex >= sizeof(tUnionSetting) / sizeof(int)) {
-      settingIndex = 0;
-    }
-    encoder.setPosition(pumpSetupFromEPR[selectedPump].B[settingIndex]); });
-
-  encoderBtn.attachDoubleClick([]()
-                               {
-                                 if (currentStatus != _SETUP_MODE)
-                                 {
-                                   settingIndex = 0;
-                                   selectedPump = 0;
-                                   encoder.setPosition(pumpSetupFromEPR[selectedPump].B[settingIndex]);
-                                   currentStatus = _SETUP_MODE;
-                                 }
-                                 else
-                                 {
-                                   EEPROM.put(0, pumpSetupFromEPR);
-                                   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-                                   {
-                                     myPump[i].init();
-                                   }
-                                   currentStatus = _RUN;
-                                 } });
-
-  encoderBtn.attachLongPressStart([]()
-                                  {
-    selectedPump++;
-    if (selectedPump >= NB_OF_PUMPS) {
-      selectedPump = 0;
-    }
-    encoder.setPosition(pumpSetupFromEPR[selectedPump].B[settingIndex]); });
-
-  currentStatus = _RUN;
-
+  encoderBtn.attachClick(encBtnClick);
+  encoderBtn.attachDoubleClick(encBtnDoubleClick);
+  encoderBtn.attachLongPressStart(encBtnLongPressStart);
+  // Setup external interrupts for STOP button and leak sensors
   pinMode(pinINT0StopButton, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, FALLING);
-
   pinMode(pinINT1AlarmSensors, INPUT);
   attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
+
+  displayInitPrint();
+  currentStatus = _RUN;
+  handleLCD();
 }
 
 void loop()
@@ -316,6 +317,7 @@ void loop()
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
       myPump[i].stopIt();
     alarmLedBlink(200);
+    handleLCD();
   }
 
   if (currentStatus == _RUN)
@@ -324,6 +326,7 @@ void loop()
     digitalWrite(pinAlarmLED, ledState);
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
       myPump[i].pumpIt();
+      handleLCD();
   }
 
   if (currentStatus == _STOP)
@@ -332,28 +335,36 @@ void loop()
       myPump[i].stopIt();
     ledState = HIGH;
     digitalWrite(pinAlarmLED, ledState);
+    handleLCD();
   }
 
   if (currentStatus == _SETUP_MODE)
   {
     encoder.tick();
+    newValue = encoder.getPosition();
+    if (newValue < 0)
+      newValue = 0;
+    if (newValue > 99)
+      newValue = 99;
 
-    int oldValue;
-    int newValue = encoder.getPosition();
+    if (newValue != oldValue)
+    {
 
-    pumpSetupFromEPR[selectedPump].B[settingIndex] = newValue;
+      pumpSetupFromEPR[selectedPump].B[settingIndex] = newValue;
 
-    lcd.setCursor(0, 0);
-    lcd.print("Pump: ");
-    lcd.print(selectedPump);
-    lcd.setCursor(0, 1);
-    lcd.print("Setting ");
-    lcd.print(nameOfSetting[settingIndex]);
-    lcd.print(": ");
-    lcd.print(newValue);
-    oldValue = newValue;
+      lcd.setCursor(0, 0);
+      lcd.print("Pump N: ");
+      lcd.print(selectedPump + 1);
+      lcd.setCursor(0, 1);
+      lcd.print("Set ");
+      lcd.print(nameOfSetting[settingIndex]);
+      lcd.print(": ");
+      lcd.print(newValue);
+      lcd.print("sec(%)");
+      oldValue = newValue;
+    }
   }
 
-  handleLCD();
+  
   encoderBtn.tick();
 }

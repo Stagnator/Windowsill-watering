@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "_Pumper.h"
 
 PUMPER::PUMPER() {}
@@ -32,25 +33,70 @@ void PUMPER::init()
   currMoist = 0;
   readMoisture();
   readDataEPR();
-  //pumpSetup = initPumpSetup[pumpNo];
   pumpBtn.setLongPressIntervalMs(800);
-  if (isPumpLeak())
+  if (isStorageEmpty())
   {
-    pumpStatus = _LEAK_DT;
+    pumpStatus = _OUT_OF_WATER;
   }
 }
 
 void PUMPER::pumpGo()
 {
-  digitalWrite(pumpPinNo, HIGH);
+  if (pumpStatus == _OUT_OF_WATER) pumpStatus = _WAITING;
+  if (isStorageEmpty())
+  {
+    pumpStatus = _OUT_OF_WATER;
+    return;
+  }
+  else
+  {
+    pumpStatus = _RUNNING;
+  
+  }
 }
+
+void PUMPER::readMoisture()
+{
+  int soilMoistureValue = analogRead(sensPinNo);
+  currMoist = map(soilMoistureValue, AirValue, WaterValue, 0, 100);
+}
+
+void PUMPER::onePump()
+{
+  if (pumpStatus == _OUT_OF_WATER) pumpStatus = _WAITING;
+  
+  if (isStorageEmpty())
+  {
+    pumpStatus = _OUT_OF_WATER;
+    return;
+  }
+  digitalWrite(pumpPinNo, HIGH);
+  delay(pumpSetup.D.pumpTime * 1000);
+  digitalWrite(pumpPinNo, LOW);
+} //
+
+bool PUMPER::isStorageEmpty()
+{
+  return digitalRead(alarmPinNo);
+} //
 
 void PUMPER::stopIt()
 {
   digitalWrite(pumpPinNo, LOW);
 } //
 
-EWateringResult PUMPER::pumpIt()
+void PUMPER::readDataEPR()
+{
+  EEPROM.get(pumpNo * sizeof(tUnionSetting), pumpSetup);
+}
+
+void PUMPER::diasablePump()
+{
+  digitalWrite(pumpPinNo, LOW);
+  pumpStatus = _STOP_PUMP;
+} //
+
+void PUMPER::pumpIt()
 {
   Serial.print("Pump number ");
   Serial.println(pumpNo);
@@ -79,23 +125,11 @@ EWateringResult PUMPER::pumpIt()
   }
 }
 
-void PUMPER::onePump()
-{
-  digitalWrite(pumpPinNo, HIGH);
-  delay(pumpSetup.D.pumpTime * 1000);
-  digitalWrite(pumpPinNo, LOW);
-} //
 
-bool PUMPER::isStorageEmpty()
-{
-  return digitalRead(alarmPinNo);
-} //
 
-void readMoisture()
-{
-  int soilMoistureValue = analogRead(sensPinNo);
-  this.currMoist = map(soilMoistureValue, AirValue, WaterValue, 0, 100);
-}
+
+
+
 
 uint8_t PUMPER::getMoisture()
 {
