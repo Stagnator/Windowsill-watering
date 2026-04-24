@@ -181,6 +181,20 @@ EStatusOfPump PUMPER::getStatus()
   return pumpStatus;
 }
 
+uint8_t PUMPER::getMoisture()
+{
+  return currMoist;
+}
+
+uint8_t PUMPER::getDesiredMoisture()
+{
+  if (pumpStatus == _WAITING)
+    return pumpSetup.D.minM;
+  else if (pumpStatus == _RUNNING)
+    return pumpSetup.D.maxM;
+  return pumpSetup.D.minM;
+}
+
 //-------------------------------------button----------------
 void PUMPER::LongPressStart()
 {

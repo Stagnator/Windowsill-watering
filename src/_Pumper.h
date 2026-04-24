@@ -5,7 +5,8 @@
 #ifndef PUMPER_H
 #define PUMPER_H
 //=====================================
-
+#include <Arduino.h>
+#include <OneButton.h>
 /* Enums */
 
 // pumps status
@@ -80,11 +81,11 @@ public:
 
   /* Methods */
   void init(); //+
-  void stopIt();             // (Emergency) Stop of pumping
+  void stopIt();             // +(Emergency) Stop of pumping
   void pumpIt();  // +handle Pump
   uint8_t getMoisture();     // +Return current moisture
   uint8_t getDesiredMoisture(); // +Return desired moisture level
-  EStatusOfPump getStatus(); // Return status
+  EStatusOfPump getStatus(); // +Return status
 
 }; // class
 //========================================

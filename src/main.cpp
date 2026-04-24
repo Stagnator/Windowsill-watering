@@ -77,7 +77,7 @@ ECurrStatus currentStatus = _STOP;
 
 PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 
-const unsigned int WRITTEN_SIGNATURE = 0xBEEFDEED;
+const unsigned long WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
 
 void memoryInit()
@@ -125,6 +125,30 @@ void leakAlarmOn()
   currentStatus = _ALARM;
 }
 
+// Non-blocking LED blink using millis()
+void alarmLedBlink(unsigned long interval)
+{
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval)
+  {
+    ledState = !ledState;
+    digitalWrite(pinAlarmLED, ledState);
+    previousMillis = currentMillis;
+  }
+}
+
+void alarmLedBlink(unsigned long onTime, unsigned long offTime)
+{
+  unsigned long currentMillis = millis();
+  unsigned long interval = ledState ? onTime : offTime;
+  if (currentMillis - previousMillis >= interval)
+  {
+    ledState = !ledState;
+    digitalWrite(pinAlarmLED, ledState);
+    previousMillis = currentMillis;
+  }
+}
+
 void displayInitPrint()
 {
   lcd.setCursor(0, 0);
@@ -155,7 +179,7 @@ void handleLCDandLED()
   {
   case _STOP:
     newString1 += " STOP";
-    alarmLedBlink(1000,200);
+    alarmLedBlink(1000, 200);
     break;
   case _RUN:
     newString1 += " RUN";
@@ -208,30 +232,6 @@ void handleLCDandLED()
     lcd.setCursor(0, 1);
     lcd.print(newString2.c_str());
     oldString2 = newString2;
-  }
-}
-
-// Non-blocking LED blink using millis()
-void alarmLedBlink(unsigned long interval)
-{
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval)
-  {
-    ledState = !ledState;
-    digitalWrite(pinAlarmLED, ledState);
-    previousMillis = currentMillis;
-  }
-}
-
-void alarmLedBlink(unsigned long onTime, unsigned long offTime)
-{
-  unsigned long currentMillis = millis();
-  unsigned long interval = ledState ? onTime : offTime;
-  if (currentMillis - previousMillis >= interval)
-  {
-    ledState = !ledState;
-    digitalWrite(pinAlarmLED, ledState);
-    previousMillis = currentMillis;
   }
 }
 
@@ -330,7 +330,7 @@ void loop()
   {
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
       myPump[i].stopIt();
-      handleLCDandLED();
+    handleLCDandLED();
   }
 
   if (currentStatus == _RUN)
