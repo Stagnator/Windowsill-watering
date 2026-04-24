@@ -73,7 +73,7 @@ bool ledState = LOW;
 String oldString1, oldString2;
 String newString1, newString2;
 uint8_t oldValue, newValue;
-ECurrStatus currentStatus = _STOP;
+volatile ECurrStatus currentStatus = _STOP;
 
 PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 
@@ -322,6 +322,10 @@ void setup()
   displayInitPrint();
   currentStatus = _RUN;
   handleLCDandLED();
+  oldString1.reserve(16);
+  oldString2.reserve(16);
+  newString1.reserve(16);
+  newString2.reserve(16);
 }
 
 void loop()
@@ -350,9 +354,8 @@ void loop()
   if (currentStatus == _SETUP_MODE)
   {
     encoder.tick();
-    newValue = encoder.getPosition();
-    if (newValue > 99)
-      newValue = 99;
+    long encPos = encoder.getPosition();
+    newValue = constrain(encPos, 0, 99);
 
     if (newValue != oldValue)
     {

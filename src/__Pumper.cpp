@@ -65,7 +65,7 @@ void PUMPER::pumpGo()
 void PUMPER::readMoisture()
 {
   int soilMoistureValue = analogRead(sensPinNo);
-  currMoist = map(soilMoistureValue, AirValue, WaterValue, 0, 100);
+  currMoist = constrain(map(soilMoistureValue, AirValue, WaterValue, 0, 100), 1, 99);
 }
 
 void PUMPER::onePump()
@@ -78,12 +78,7 @@ void PUMPER::onePump()
     pumpStatus = _OUT_OF_WATER;
     return;
   }
-  pumpPinState = HIGH;
-  digitalWrite(pumpPinNo, pumpPinState);
-  delay(pumpSetup.D.pumpTime * 1000);
-  pumpPinState = LOW;
-  digitalWrite(pumpPinNo, pumpPinState);
-
+  nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, 0);
 } //
 
 bool PUMPER::isStorageEmpty()
@@ -94,6 +89,14 @@ bool PUMPER::isStorageEmpty()
 void PUMPER::readDataEPR()
 {
   EEPROM.get(pumpNo * sizeof(tUnionSetting), pumpSetup);
+  pumpSetup.D.minM = constrain(pumpSetup.D.minM, 0, 99);// Validate settings read from EEPROM
+  pumpSetup.D.maxM = constrain(pumpSetup.D.maxM, 0, 99);
+  if (pumpSetup.D.maxM < pumpSetup.D.minM)
+  {
+    pumpSetup.D.maxM = pumpSetup.D.minM;
+  }
+  pumpSetup.D.pumpTime = constrain(pumpSetup.D.pumpTime, 0, 10);
+  pumpSetup.D.pumpPause = constrain(pumpSetup.D.pumpPause, 0, 20);
 }
 
 void PUMPER::diasableEnablePump()
@@ -136,12 +139,11 @@ void PUMPER::stopIt()
   runUpCounter = 0;
   pumpPinState = LOW;
   digitalWrite(pumpPinNo, pumpPinState);
+  pumpBtn.tick();
 }
 
 void PUMPER::pumpIt()
 {
-  Serial.print("Pump number ");
-  Serial.println(pumpNo);
   pumpBtn.tick();
   readMoisture();
   if (pumpStatus == _RUNNING)
