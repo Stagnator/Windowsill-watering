@@ -56,21 +56,22 @@ private:
   uint8_t currMoist;        // current moisture from capacitive sensor
   uint8_t runUpCounter;     // Runs up counter to avoid infinite pumping (for safety reasons)
   bool pumpPinState = LOW;
-  unsigned long previousRunMillis, previousPauseMillis; // For counting time in millis
+  unsigned long previousMillis; // For counting time in millis
 
   void readMoisture(); // +Refresh current moisture from capacity sensor 0-100%  
   void onePump();      // + One time of shot pamping (for calibrating purposes)
   void pumpGo();       // + Just start pumping to desired moisture level
   bool isStorageEmpty(); // +Check if water storage is empty (for resistive sensor)
   void readDataEPR(); // Read pump settings from EEPROM
-  void diasablePump(); // Disable pump (for example, when leak is detected)
-
+  void diasableEnablePump(); // Disable pump (for example, when leak is detected)
+  void nonBlockingPumpRun(unsigned long onTime, unsigned long offTime); // Non-blocking pumping to desired moisture level (for normal operation)
+  
   // Pump button functions
-  void LongPressStart(); //Disable or enable pump
-  void LongPressStop();
-  void DuringLongPress();
-  void ClickFunction(); //Start one time of shot pumping (for calibrating purposes)
-  void DoubleClickFunction(); //Start pumping to desired moisture level (for calibrating purposes)
+  void LongPressStart(); //Disable or enable pump (or reset error)
+  void LongPressStop(); // not used
+  void DuringLongPress(); // not used
+  void ClickFunction(); //Start one time of shot pumping or reset out of water status
+  void DoubleClickFunction(); //Start/Stop pumping to seted moisture level
 
 public:
   /* Constructors */
@@ -78,11 +79,11 @@ public:
   explicit PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin);
 
   /* Methods */
-  void init();
+  void init(); //+
   void stopIt();             // (Emergency) Stop of pumping
-  void pumpIt();  // handle Pump
-  uint8_t getMoisture();     // Return current moisture
-  uint8_t getDesiredMoisture(); // Return desired moisture level
+  void pumpIt();  // +handle Pump
+  uint8_t getMoisture();     // +Return current moisture
+  uint8_t getDesiredMoisture(); // +Return desired moisture level
   EStatusOfPump getStatus(); // Return status
 
 }; // class

@@ -44,8 +44,6 @@ void PUMPER::init()
 
 void PUMPER::pumpGo()
 {
-  if (pumpStatus == _OUT_OF_WATER)
-    pumpStatus = _WAITING;
   if (isStorageEmpty())
   {
     pumpStatus = _OUT_OF_WATER;
@@ -92,113 +90,122 @@ bool PUMPER::isStorageEmpty()
   return digitalRead(alarmPinNo);
 } //
 
-void PUMPER::stopIt()
-{
-  pumpStatus =  _STOP_PUMP;
-  pumpPinState = LOW;
-  digitalWrite(pumpPinNo, pumpPinState);
-} //
+
 
 void PUMPER::readDataEPR()
 {
   EEPROM.get(pumpNo * sizeof(tUnionSetting), pumpSetup);
 }
 
-void PUMPER::diasablePump()
+void PUMPER::diasableEnablePump()
 {
-  digitalWrite(pumpPinNo, LOW);
-  pumpStatus = _STOP_PUMP;
+  if (pumpStatus == _STOP_PUMP || pumpStatus == _ERROR)
+  {
+    pumpStatus = _WAITING;
+    runUpCounter = 0;
+  }
+  else
+  {
+    pumpStatus = _STOP_PUMP;
+    pumpPinState = LOW;
+    digitalWrite(pumpPinNo, pumpPinState);
+  }
+  
 } //
+
+void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
+{
+  unsigned long currentMillis = millis();
+  unsigned long interval = pumpPinState ? onTime : offTime;
+  if (currentMillis - previousMillis >= interval)
+  {
+    pumpPinState = !pumpPinState;
+    runUpCounter++;
+    if (runUpCounter >= maxPumpCykles*2)
+    {
+      pumpStatus = _ERROR;
+      pumpPinState = LOW;
+    }
+    digitalWrite(pumpPinNo, pumpPinState);
+    previousMillis = currentMillis;
+  }
+}
+
+void PUMPER::stopIt()
+{
+  pumpStatus =  _STOP_PUMP;
+  runUpCounter = 0;
+  pumpPinState = LOW;
+  digitalWrite(pumpPinNo, pumpPinState);
+} 
 
 void PUMPER::pumpIt()
 {
   Serial.print("Pump number ");
   Serial.println(pumpNo);
   pumpBtn.tick();
-  if (isPumpLeak())
+  readMoisture();
+  if (pumpStatus == _RUNNING)
   {
-    pumpStatus = _LEAK_DT;
-    return _LEAK;
-  }
-
-  if (pumpStatus == _OK)
-  {
-    readMoisture();
-    if (currMoist < pumpSetup.minM)
+    if (currMoist >= pumpSetup.D.maxM)
     {
-      return _DONE;
+      pumpStatus = _WAITING;
+      pumpPinState = LOW;
+      digitalWrite(pumpPinNo, pumpPinState);
+      runUpCounter = 0;
     }
     else
     {
-      return _PASS;
+      if (isStorageEmpty())
+      {
+        pumpStatus = _OUT_OF_WATER;
+        pumpPinState = LOW;
+        digitalWrite(pumpPinNo, pumpPinState);
+        return;
+      }
+      nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, pumpSetup.D.pumpPause * 1000);
     }
   }
-  else
+  else if (pumpStatus == _WAITING)
   {
-    return _LEAK;
+    if (currMoist <= pumpSetup.D.minM)
+    {
+      pumpStatus = _RUNNING;
+    }
   }
-}
-
-uint8_t PUMPER::getMoisture()
-{
-  return currMoist;
+  
 }
 
 EStatusOfPump PUMPER::getStatus()
 {
-  return EStatusOfPump();
+  return pumpStatus;
 }
 
-uint8_t PUMPER::getDesiredMoisture()
-{
-  if (pumpStatus == _RUNNING)
-  {
-    return pumpSetup.D.maxM;
-  }
-  else
-  {
-    return pumpSetup.D.minM;
-  }
-}
 //-------------------------------------button----------------
 void PUMPER::LongPressStart()
 {
   // Serial.print(((OneButton *)oneButton)->getPressedMs());
   Serial.println("\t - LongPressStart()");
-  if (pumpStatus == _SETUP)
-  {
-    setUpCounter = 0;
-    pumpGo();
-  }
+  diasableEnablePump();
 }
 
 void PUMPER::LongPressStop()
 {
-  stopIt();
-  Serial.print(setUpCounter);
   Serial.println("\t - LongPressStop()\n");
 }
 
 void PUMPER::DuringLongPress()
 {
-  // Serial.print(((OneButton *)oneButton)->getPressedMs());
   Serial.println("\t - DuringLongPress()");
-  setUpCounter = +1;
 }
 
 void PUMPER::ClickFunction()
 {
-  if (pumpStatus == _OUT_OF_WATER)
-  {
-    pumpStatus = _OK;
-  }
-  else
-  {
-    onePump();
-  }
+      onePump();
+ 
 } // ClickFunction
 
 void PUMPER::DoubleClickFunction()
 {
-
+pumpGo();
 } // DoubleClickFunction

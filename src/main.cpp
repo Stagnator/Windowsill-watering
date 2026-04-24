@@ -269,7 +269,7 @@ void encBtnDoubleClick()
 void encBtnClick()
 {
   settingIndex++;
-  if (settingIndex >= sizeof(tUnionSetting) / sizeof(int))
+  if (settingIndex >= sizeof(tUnionSetting) / sizeof(uint8_t))
   {
     settingIndex = 0;
   }
@@ -351,8 +351,6 @@ void loop()
   {
     encoder.tick();
     newValue = encoder.getPosition();
-    if (newValue < 0)
-      newValue = 0;
     if (newValue > 99)
       newValue = 99;
 
