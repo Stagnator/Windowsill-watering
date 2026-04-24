@@ -5,7 +5,7 @@
 PUMPER::PUMPER() {}
 
 PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin)
-    : pumpNo(i), pumpBtn(buttonPin), sensPinNo(sensPin), pumpPinNo(pumpPin), alarmPinNo(alarmPin)
+    : pumpNo(i), pumpBtn(buttonPin, true), sensPinNo(sensPin), pumpPinNo(pumpPin), alarmPinNo(alarmPin)
 {
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
@@ -51,10 +51,11 @@ void PUMPER::pumpGo()
   }
   else
   {
-    if(pumpStatus == _WAITING)
+    if (pumpStatus == _WAITING)
     {
       pumpStatus = _RUNNING;
-    } else if (pumpStatus == _RUNNING)
+    }
+    else if (pumpStatus == _RUNNING)
     {
       pumpStatus = _WAITING;
     }
@@ -82,15 +83,13 @@ void PUMPER::onePump()
   delay(pumpSetup.D.pumpTime * 1000);
   pumpPinState = LOW;
   digitalWrite(pumpPinNo, pumpPinState);
-  
+
 } //
 
 bool PUMPER::isStorageEmpty()
 {
   return digitalRead(alarmPinNo);
 } //
-
-
 
 void PUMPER::readDataEPR()
 {
@@ -110,7 +109,7 @@ void PUMPER::diasableEnablePump()
     pumpPinState = LOW;
     digitalWrite(pumpPinNo, pumpPinState);
   }
-  
+
 } //
 
 void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
@@ -121,7 +120,7 @@ void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
   {
     pumpPinState = !pumpPinState;
     runUpCounter++;
-    if (runUpCounter >= maxPumpCykles*2)
+    if (runUpCounter >= maxPumpCykles * 2)
     {
       pumpStatus = _ERROR;
       pumpPinState = LOW;
@@ -133,11 +132,11 @@ void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
 
 void PUMPER::stopIt()
 {
-  pumpStatus =  _STOP_PUMP;
+  pumpStatus = _STOP_PUMP;
   runUpCounter = 0;
   pumpPinState = LOW;
   digitalWrite(pumpPinNo, pumpPinState);
-} 
+}
 
 void PUMPER::pumpIt()
 {
@@ -173,7 +172,6 @@ void PUMPER::pumpIt()
       pumpStatus = _RUNNING;
     }
   }
-  
 }
 
 EStatusOfPump PUMPER::getStatus()
@@ -190,9 +188,8 @@ uint8_t PUMPER::getDesiredMoisture()
 {
   if (pumpStatus == _WAITING)
     return pumpSetup.D.minM;
-  else if (pumpStatus == _RUNNING)
+  else
     return pumpSetup.D.maxM;
-  return pumpSetup.D.minM;
 }
 
 //-------------------------------------button----------------
@@ -215,11 +212,11 @@ void PUMPER::DuringLongPress()
 
 void PUMPER::ClickFunction()
 {
-      onePump();
- 
+  onePump();
+
 } // ClickFunction
 
 void PUMPER::DoubleClickFunction()
 {
-pumpGo();
+  pumpGo();
 } // DoubleClickFunction
