@@ -18,15 +18,19 @@ This project monitors soil moisture and water tank level for three separate zone
 - Emergency stop button and alarm mode
 
 ## Hardware
-
+(all parts from aliexpress, just search"for arduino Automatic irrigation module DIY kit soil moisture detection automatic water pumping")
 - Board: `LGT8F328P` (Arduino-compatible)
 - Sensors:
-  - Capacitive moisture sensors on analog inputs
+  - Capacitive moisture sensors on analog inputs 
   - Resistive empty-tank sensors on digital pins
-  - Leak alarm sensors on digital pins
+  - Leak alarm sensors on digital pins 
 - Output:
-  - Pump relays
+  - Pump relays 
+  - LCD I2C 16*2 display
   - Alarm LED
+- Buttons:
+  - Momentary push buttons - 3 pc. for pumps manual control and one big red for emergency stop :) 
+  - Rotary Encoder module for Arduino
 
 ## Pin assignments
 

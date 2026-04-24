@@ -1,1 +1,39 @@
-Arduino Nano (AtMega328p)
+Windowsill-watering Bill of Materials
+
+Core components:
+- 1 × LGT8F328P-compatible Arduino Nano-style board
+- 1 × 16x2 I2C LCD module (HD44780-compatible)
+- 1 × rotary encoder with push-button (module)
+- 1 × emergency STOP button (normally open)
+- 1 × alarm indicator LED
+
+Zone hardware (per pump zone, ×3):
+- 1 × capacitive soil moisture sensor or probe
+- 1 × pump relay module or NPN/MOSFET driver for pump control
+- 1 × small water pump (12V or suitable voltage for your system)
+- 1 × resistive empty-tank sensor/probe (for tank-low detection)
+- 1 × manual zone control button
+- wiring and connectors for sensor, pump, and button
+
+Leak detection hardware:
+- 1 × resistive leak detection probes or sensor pairs
+- wiring and connectors for leak sensors
+
+Power and miscellaneous:
+- 1 × DC power supply for the board and pumps (match pump voltage/current)
+- 1 × common ground wiring
+- 1 × project enclosure or mounting hardware
+- jumper wires, screw terminals, and PCB/breadboard as needed
+
+Optional:
+- 1 × I2C interface adapter for LCD if not already integrated
+- 1 × separate power supply for pumps if required by current draw
+- 1 × LED resistor (220 Ω to 1 kΩ) for alarm LED
+- 3 × flyback diodes for relay or transistor-driven pumps (if using discrete drivers)
+
+Notes:
+- The project uses pins A0/A1/A2 for pump outputs and A3/A6/A7 for moisture sensor inputs.
+- I2C LCD uses A4 (SDA) and A5 (SCL).
+- Emergency stop uses pin D2 and leak interrupt uses pin D3.
+- Adjust component voltage/current ratings for the selected pumps and relays.
+
