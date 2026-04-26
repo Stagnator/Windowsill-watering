@@ -7,25 +7,6 @@ PUMPER::PUMPER() {}
 PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin)
     : pumpNo(i), pumpBtn(buttonPin, true), sensPinNo(sensPin), pumpPinNo(pumpPin), alarmPinNo(alarmPin)
 {
-  pinMode(sensPinNo, INPUT);
-  pinMode(alarmPinNo, INPUT);
-  pinMode(pumpPinNo, OUTPUT);
-
-  pumpBtn.attachClick([](void *scope)
-                      { ((PUMPER *)scope)->ClickFunction(); },
-                      this); // это п-дец ))))
-  pumpBtn.attachDoubleClick([](void *scope)
-                            { ((PUMPER *)scope)->DoubleClickFunction(); },
-                            this);
-  pumpBtn.attachLongPressStart([](void *scope)
-                               { ((PUMPER *)scope)->LongPressStart(); },
-                               this);
-  pumpBtn.attachDuringLongPress([](void *scope)
-                                { ((PUMPER *)scope)->DuringLongPress(); },
-                                this);
-  pumpBtn.attachLongPressStop([](void *scope)
-                              { ((PUMPER *)scope)->LongPressStop(); },
-                              this);
 }
 
 void PUMPER::init()
@@ -35,12 +16,24 @@ void PUMPER::init()
   currMoist = 0;
   readMoisture();
   readDataEPR();
-  Serial.println("pump redy"+ String(pumpNo));
+
+  pinMode(sensPinNo, INPUT);
+  pinMode(alarmPinNo, INPUT);
+  pinMode(pumpPinNo, OUTPUT);
   pumpBtn.setLongPressIntervalMs(800);
+  pumpBtn.attachClick(staticClickHandler, this);
+  pumpBtn.attachDoubleClick(staticDoubleClickHandler, this);
+  pumpBtn.attachLongPressStart(staticLongPressStartHandler, this);
+  pumpBtn.attachDuringLongPress(staticDuringLongPressHandler, this);
+  pumpBtn.attachLongPressStop(staticLongPressStopHandler, this);
+
   if (isStorageEmpty())
   {
     pumpStatus = _OUT_OF_WATER;
+    Serial.println("pump out of water: " + String(pumpNo));
   }
+
+  Serial.println("pump ready: " + String(pumpNo));
 }
 
 void PUMPER::pumpGo()
@@ -90,7 +83,7 @@ bool PUMPER::isStorageEmpty()
 void PUMPER::readDataEPR()
 {
   EEPROM.get(pumpNo * sizeof(tUnionSetting), pumpSetup);
-  pumpSetup.D.minM = constrain(pumpSetup.D.minM, 0, 99);// Validate settings read from EEPROM
+  pumpSetup.D.minM = constrain(pumpSetup.D.minM, 0, 99); // Validate settings read from EEPROM
   pumpSetup.D.maxM = constrain(pumpSetup.D.maxM, 0, 99);
   if (pumpSetup.D.maxM < pumpSetup.D.minM)
   {
@@ -140,6 +133,11 @@ void PUMPER::stopIt()
   runUpCounter = 0;
   pumpPinState = LOW;
   digitalWrite(pumpPinNo, pumpPinState);
+  pumpBtn.tick();
+}
+
+void PUMPER::tick()
+{
   pumpBtn.tick();
 }
 
@@ -195,31 +193,65 @@ uint8_t PUMPER::getDesiredMoisture()
     return pumpSetup.D.maxM;
 }
 
+// Статический посредник
+void PUMPER::staticClickHandler(void *scope)
+{
+  // Приводим указатель обратно к типу нашего класса
+  PUMPER *instance = (PUMPER *)scope;
+  instance->ClickFunction(); // Вызываем обычный метод
+}
+
+void PUMPER::staticDoubleClickHandler(void *scope)
+{
+  PUMPER *instance = (PUMPER *)scope;
+  instance->DoubleClickFunction();
+}
+
+void PUMPER::staticLongPressStartHandler(void *scope)
+{
+  PUMPER *instance = (PUMPER *)scope;
+  instance->LongPressStart();
+}
+
+void PUMPER::staticDuringLongPressHandler(void *scope)
+{
+  PUMPER *instance = (PUMPER *)scope;
+  instance->DuringLongPress();
+}
+
+void PUMPER::staticLongPressStopHandler(void *scope)
+{
+  PUMPER *instance = (PUMPER *)scope;
+  instance->LongPressStop();
+}
+
 //-------------------------------------button----------------
 void PUMPER::LongPressStart()
 {
   // Serial.print(((OneButton *)oneButton)->getPressedMs());
-  Serial.println("\t - LongPressStart()");
+  Serial.println("\t - LongPressStart()"+String(pumpNo));
   diasableEnablePump();
 }
 
 void PUMPER::LongPressStop()
 {
-  Serial.println("\t - LongPressStop()\n");
+  Serial.println("\t - LongPressStop()\n"+String(pumpNo));
 }
 
 void PUMPER::DuringLongPress()
 {
-  Serial.println("\t - DuringLongPress()");
+  Serial.println("\t - DuringLongPress()"+String(pumpNo));
 }
 
 void PUMPER::ClickFunction()
 {
   onePump();
+  Serial.println("\t - ClickFunction()"+String(pumpNo));
 
 } // ClickFunction
 
 void PUMPER::DoubleClickFunction()
 {
   pumpGo();
+  Serial.println("\t - DoubleClickFunction()"+String(pumpNo));
 } // DoubleClickFunction

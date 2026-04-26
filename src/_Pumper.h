@@ -67,12 +67,7 @@ private:
   void diasableEnablePump();                                            // Disable pump (for example, when leak is detected)
   void nonBlockingPumpRun(unsigned long onTime, unsigned long offTime); // Non-blocking pumping to desired moisture level (for normal operation)
 
-  // Pump button functions
-  void LongPressStart();      // Disable or enable pump (or reset error)
-  void LongPressStop();       // not used
-  void DuringLongPress();     // not used
-  void ClickFunction();       // Start one time of shot pumping or reset out of water status
-  void DoubleClickFunction(); // Start/Stop pumping to seted moisture level
+ 
 
 public:
   /* Constructors */
@@ -86,6 +81,20 @@ public:
   uint8_t getMoisture();        // +Return current moisture
   uint8_t getDesiredMoisture(); // +Return desired moisture level
   EStatusOfPump getStatus();    // +Return status
+  void tick(); // +For handling button (to be called in main loop)
+
+  static void staticClickHandler(void *scope);
+  static void staticDoubleClickHandler(void *scope);
+  static void staticLongPressStartHandler(void *scope);
+  static void staticDuringLongPressHandler(void *scope);
+  static void staticLongPressStopHandler(void *scope);
+
+   // Pump button functions
+  void LongPressStart();      // Disable or enable pump (or reset error)
+  void LongPressStop();       // not used
+  void DuringLongPress();     // not used
+  void ClickFunction();       // Start one time of shot pumping or reset out of water status
+  void DoubleClickFunction(); // Start/Stop pumping to seted moisture level
 
 }; // class
 //========================================

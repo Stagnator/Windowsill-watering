@@ -35,8 +35,8 @@ static constexpr int pinOfPump[NB_OF_PUMPS] = {A0, A1, A2};         // Pins conn
 static constexpr uint8_t pinOfAlarmSensor[NB_OF_PUMPS] = {7, 8, 9}; // Pins connected to leak resestive sensors 1-2-3 in digital mode
 static constexpr uint8_t pinOfCntrlButton[NB_OF_PUMPS] = {4, 5, 6}; // Pins connected to control buttons 1-2-3
 static constexpr uint8_t pinOfEncoder[3] = {10, 11, 12};            // Pins connected to encoder (A, B, last number is encbutton)
-static constexpr uint8_t pinINT0StopButton = 3;                     // Pin of Emergency STOP button (and START too)
-static constexpr uint8_t pinINT1AlarmSensors = 2;                   // Pin of Emergency STOP form Resestive Leak Sensors
+static constexpr uint8_t pinINT0StopButton = 2;                     // Pin of Emergency STOP button (and START too)
+static constexpr uint8_t pinINT1AlarmSensors = 3;                   // Pin of Emergency STOP form Resestive Leak Sensors
 static constexpr uint8_t pinAlarmLED = 13;                          // Pin of Alarm LED
 // A4 - SDA, A5 - SCL, LCD connection
 
@@ -65,6 +65,7 @@ static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo",
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
 OneButton encoderBtn(pinOfEncoder[2], true);
+OneButton startStopButton(pinINT0StopButton, true);
 // Global variables
 uint8_t selectedPump = 0;
 uint8_t settingIndex = 0;
@@ -110,6 +111,7 @@ void memoryInit()
 
 void startStop()
 {
+
   if (currentStatus == _STOP)
   {
     currentStatus = _RUN;
@@ -268,6 +270,16 @@ void encBtnDoubleClick()
     currentStatus = _RUN;
   }
 }
+// buttons
+void staticStartStopISR()
+{
+  startStopButton.tick();
+}
+
+void startStopButtonClick()
+{
+  startStop();
+}
 
 void encBtnClick()
 {
@@ -294,6 +306,7 @@ void encBtnLongPressStart()
 void setup()
 {
   Wire.begin();
+  Wire.setWireTimeout(3000, true); // Таймаут 3мс, сбрасывать шину при зависании
   Serial.begin(115200); // Init serial output for debug
   while (!Serial)
     ; // Needed only for built-in USB ports.
@@ -305,7 +318,7 @@ void setup()
   lcd.init();
   lcd.backlight();
   // lcd.noBacklight();
-displayInitPrint();
+  displayInitPrint();
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]);
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
@@ -318,17 +331,17 @@ displayInitPrint();
   encoderBtn.attachLongPressStart(encBtnLongPressStart);
   // Setup external interrupts for STOP button and leak sensors
   pinMode(pinINT0StopButton, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, FALLING);
-  //pinMode(pinINT1AlarmSensors, INPUT);
-  //attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
+  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), staticStartStopISR, FALLING);
+  // pinMode(pinINT1AlarmSensors, INPUT);
+  // attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
+  startStopButton.attachClick(startStopButtonClick);
 
-  
   currentStatus = _RUN;
- 
+
   oldString1.reserve(16);
-  oldString1="";
+  oldString1 = "";
   oldString2.reserve(16);
-  oldString2="";
+  oldString2 = "";
   newString1.reserve(16);
   newString2.reserve(16);
   handleLCDandLED();
@@ -382,6 +395,5 @@ void loop()
   }
 
   encoderBtn.tick();
-  //Serial.println("loopppppppppp");
-  delay(50);
+  startStopButton.tick();
 }
