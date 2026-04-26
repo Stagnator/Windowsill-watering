@@ -5,7 +5,7 @@
 PUMPER::PUMPER() {}
 
 PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin)
-    : pumpNo(i), pumpBtn(buttonPin, true), sensPinNo(sensPin), pumpPinNo(pumpPin), alarmPinNo(alarmPin)
+    : pumpNo(i), pumpBtn(buttonPin, true, true), sensPinNo(sensPin), pumpPinNo(pumpPin), alarmPinNo(alarmPin)
 {
 }
 
@@ -229,29 +229,29 @@ void PUMPER::staticLongPressStopHandler(void *scope)
 void PUMPER::LongPressStart()
 {
   // Serial.print(((OneButton *)oneButton)->getPressedMs());
-  Serial.println("\t - LongPressStart()"+String(pumpNo));
+  Serial.println("\t - LongPressStart()" + String(pumpNo));
   diasableEnablePump();
 }
 
 void PUMPER::LongPressStop()
 {
-  Serial.println("\t - LongPressStop()\n"+String(pumpNo));
+  Serial.println("\t - LongPressStop()\n" + String(pumpNo));
 }
 
 void PUMPER::DuringLongPress()
 {
-  Serial.println("\t - DuringLongPress()"+String(pumpNo));
+  Serial.println("\t - DuringLongPress()" + String(pumpNo));
 }
 
 void PUMPER::ClickFunction()
 {
   onePump();
-  Serial.println("\t - ClickFunction()"+String(pumpNo));
+  Serial.println("\t - ClickFunction()" + String(pumpNo));
 
 } // ClickFunction
 
 void PUMPER::DoubleClickFunction()
 {
   pumpGo();
-  Serial.println("\t - DoubleClickFunction()"+String(pumpNo));
+  Serial.println("\t - DoubleClickFunction()" + String(pumpNo));
 } // DoubleClickFunction

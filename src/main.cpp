@@ -4,7 +4,7 @@
 //==========================================================//
 
 /************************************************/
-#define SketchVersion "v 0.30"
+#define SketchVersion "v 0.40"
 /************************************************/
 
 // #define USE_LGT_EEPROM_API
@@ -63,9 +63,9 @@ static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo",
 
 // hardware assignements
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
+RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::FOUR3);
 OneButton encoderBtn(pinOfEncoder[2], true);
-OneButton startStopButton(pinINT0StopButton, true);
+OneButton startStopButton(pinINT0StopButton, true, true); // true for active LOW, true for pullup
 // Global variables
 uint8_t selectedPump = 0;
 uint8_t settingIndex = 0;
@@ -306,12 +306,16 @@ void encBtnLongPressStart()
 void setup()
 {
   Wire.begin();
+  Wire.setClock(100000); // Set I2C clock to 100kHz
   Wire.setWireTimeout(3000, true); // Таймаут 3мс, сбрасывать шину при зависании
+
   Serial.begin(115200); // Init serial output for debug
   while (!Serial)
     ; // Needed only for built-in USB ports.
 
   pinMode(pinAlarmLED, OUTPUT);
+  pinMode(10, INPUT);
+  pinMode(11, INPUT);
 
   Serial.println("StartStart_ver: " + String(SketchVersion));
   memoryInit();
