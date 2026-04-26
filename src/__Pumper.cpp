@@ -35,6 +35,7 @@ void PUMPER::init()
   currMoist = 0;
   readMoisture();
   readDataEPR();
+  Serial.println("pump redy"+ String(pumpNo));
   pumpBtn.setLongPressIntervalMs(800);
   if (isStorageEmpty())
   {

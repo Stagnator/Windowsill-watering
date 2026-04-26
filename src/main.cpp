@@ -35,8 +35,8 @@ static constexpr int pinOfPump[NB_OF_PUMPS] = {A0, A1, A2};         // Pins conn
 static constexpr uint8_t pinOfAlarmSensor[NB_OF_PUMPS] = {7, 8, 9}; // Pins connected to leak resestive sensors 1-2-3 in digital mode
 static constexpr uint8_t pinOfCntrlButton[NB_OF_PUMPS] = {4, 5, 6}; // Pins connected to control buttons 1-2-3
 static constexpr uint8_t pinOfEncoder[3] = {10, 11, 12};            // Pins connected to encoder (A, B, last number is encbutton)
-static constexpr uint8_t pinINT0StopButton = 2;                     // Pin of Emergency STOP button (and START too)
-static constexpr uint8_t pinINT1AlarmSensors = 3;                   // Pin of Emergency STOP form Resestive Leak Sensors
+static constexpr uint8_t pinINT0StopButton = 3;                     // Pin of Emergency STOP button (and START too)
+static constexpr uint8_t pinINT1AlarmSensors = 2;                   // Pin of Emergency STOP form Resestive Leak Sensors
 static constexpr uint8_t pinAlarmLED = 13;                          // Pin of Alarm LED
 // A4 - SDA, A5 - SCL, LCD connection
 
@@ -113,10 +113,12 @@ void startStop()
   if (currentStatus == _STOP)
   {
     currentStatus = _RUN;
+    Serial.println("Start button pressed, system started");
   }
   else
   {
     currentStatus = _STOP;
+    Serial.println("Stop button pressed, system stopped");
   }
 }
 
@@ -151,13 +153,14 @@ void alarmLedBlink(unsigned long onTime, unsigned long offTime)
 
 void displayInitPrint()
 {
+  ledState = HIGH;
+  digitalWrite(pinAlarmLED, ledState);
+  lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Windowsill Water");
   lcd.setCursor(0, 1);
   lcd.print("Stagnator ");
   lcd.print(SketchVersion);
-  ledState = HIGH;
-  digitalWrite(pinAlarmLED, ledState);
   delay(2000);
   ledState = LOW;
   digitalWrite(pinAlarmLED, ledState);
@@ -302,7 +305,7 @@ void setup()
   lcd.init();
   lcd.backlight();
   // lcd.noBacklight();
-
+displayInitPrint();
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]);
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
@@ -316,16 +319,19 @@ void setup()
   // Setup external interrupts for STOP button and leak sensors
   pinMode(pinINT0StopButton, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), startStop, FALLING);
-  pinMode(pinINT1AlarmSensors, INPUT);
-  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
+  //pinMode(pinINT1AlarmSensors, INPUT);
+  //attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
 
-  displayInitPrint();
+  
   currentStatus = _RUN;
-  handleLCDandLED();
+ 
   oldString1.reserve(16);
+  oldString1="";
   oldString2.reserve(16);
+  oldString2="";
   newString1.reserve(16);
   newString2.reserve(16);
+  handleLCDandLED();
 }
 
 void loop()
@@ -376,4 +382,6 @@ void loop()
   }
 
   encoderBtn.tick();
+  //Serial.println("loopppppppppp");
+  delay(50);
 }
