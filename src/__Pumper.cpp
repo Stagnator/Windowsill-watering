@@ -30,10 +30,10 @@ void PUMPER::init()
   if (isStorageEmpty())
   {
     pumpStatus = _OUT_OF_WATER;
-    Serial.println("pump out of water: " + String(pumpNo));
+    DEBUG_PRINTLN(F("pump out of water: ") + String(pumpNo));
   }
 
-  Serial.println("pump ready: " + String(pumpNo));
+  DEBUG_PRINTLN(F("pump ready: ") + String(pumpNo));
 }
 
 void PUMPER::pumpGo()
@@ -228,30 +228,29 @@ void PUMPER::staticLongPressStopHandler(void *scope)
 //-------------------------------------button----------------
 void PUMPER::LongPressStart()
 {
-  // Serial.print(((OneButton *)oneButton)->getPressedMs());
-  Serial.println("\t - LongPressStart()" + String(pumpNo));
+  
+  DEBUG_PRINTLN(F("\t - LongPressStart()") + String(pumpNo));
   diasableEnablePump();
 }
 
 void PUMPER::LongPressStop()
 {
-  Serial.println("\t - LongPressStop()\n" + String(pumpNo));
+  DEBUG_PRINTLN(F("\t - LongPressStop()\n") + String(pumpNo));
 }
 
 void PUMPER::DuringLongPress()
 {
-  Serial.println("\t - DuringLongPress()" + String(pumpNo));
+  DEBUG_PRINTLN(F("\t - DuringLongPress()") + String(pumpNo));
 }
 
 void PUMPER::ClickFunction()
 {
   onePump();
-  Serial.println("\t - ClickFunction()" + String(pumpNo));
-
+  DEBUG_PRINTLN(F("\t - ClickFunction()") + String(pumpNo));
 } // ClickFunction
 
 void PUMPER::DoubleClickFunction()
 {
   pumpGo();
-  Serial.println("\t - DoubleClickFunction()" + String(pumpNo));
+  DEBUG_PRINTLN(F("\t - DoubleClickFunction()") + String(pumpNo));
 } // DoubleClickFunction

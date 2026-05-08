@@ -26,7 +26,7 @@ typedef enum
 // Water: (350 205]
 static constexpr int AirValue = 565;         // 100 % Calibration of sensors needed!
 static constexpr int WaterValue = 205;       // 0% Calibration of sensors needed!
-static constexpr uint8_t maxPumpCykles = 50; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
+static constexpr uint8_t maxPumpCykles = 60; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
 //=====================================
 
 #pragma pack(push, 1)

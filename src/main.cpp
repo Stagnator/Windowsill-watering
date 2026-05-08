@@ -29,6 +29,17 @@
 | -Pump control button                         |
 \=============================================*/
 
+#define DEBUG_ENABLE
+#ifdef DEBUG_ENABLE
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+// #define DEBUG_BEGIN(speed)   Serial.begin(speed)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+// #define DEBUG_BEGIN(speed)
+#endif
+
 // Pins definitions
 static constexpr int pinOfSensor[NB_OF_PUMPS] = {A3, A6, A7};       // Pins connected to capacity sensors 1-2-3
 static constexpr int pinOfPump[NB_OF_PUMPS] = {A0, A1, A2};         // Pins connected to pump relays 1-2-3
@@ -80,9 +91,14 @@ PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 
 const unsigned long WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
+const int eepromSize = EEPROM.length();
+
 
 void memoryInit()
 {
+  DEBUG_PRINTLN(F("\nStart StoreFlashData on "));
+  DEBUG_PRINT(F("EEPROM length: "));
+  DEBUG_PRINTLN(eepromSize);
   // Check signature at address
   unsigned int storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
   unsigned int a = 0;
@@ -95,17 +111,17 @@ void memoryInit()
   EEPROM.get(0, pumpSetupFromEPR);
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
   {
-    Serial.print("Pump read from EEPROM, pump ");
-    Serial.print(i);
-    Serial.print(": ");
-    Serial.print(pumpSetupFromEPR[i].D.minM);
-    Serial.print("%, ");
-    Serial.print(pumpSetupFromEPR[i].D.maxM);
-    Serial.print("%, ");
-    Serial.print(pumpSetupFromEPR[i].D.pumpTime);
-    Serial.print("s, ");
-    Serial.print(pumpSetupFromEPR[i].D.pumpPause);
-    Serial.println("s");
+    DEBUG_PRINT(F("Pump read from EEPROM, pump "));
+    DEBUG_PRINT(i);
+    DEBUG_PRINT(F(": "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.minM);
+    DEBUG_PRINT(F("%, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.maxM);
+    DEBUG_PRINT(F("%, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpTime);
+    DEBUG_PRINT(F("s, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpPause);
+    DEBUG_PRINTLN(F("s"));
   }
 }
 
@@ -115,12 +131,12 @@ void startStop()
   if (currentStatus == _STOP)
   {
     currentStatus = _RUN;
-    Serial.println("Start button pressed, system started");
+    DEBUG_PRINTLN(F("Start button pressed, system started"));
   }
   else
   {
     currentStatus = _STOP;
-    Serial.println("Stop button pressed, system stopped");
+    DEBUG_PRINTLN(F("Stop button pressed, system stopped"));
   }
 }
 
@@ -310,14 +326,14 @@ void setup()
   Wire.setWireTimeout(3000, true); // Таймаут 3мс, сбрасывать шину при зависании
 
   Serial.begin(115200); // Init serial output for debug
-  while (!Serial)
-    ; // Needed only for built-in USB ports.
+  delay(2000); // 2 seconds delay for stable start and to read initial debug messages
 
   pinMode(pinAlarmLED, OUTPUT);
   pinMode(10, INPUT);
   pinMode(11, INPUT);
 
-  Serial.println("StartStart_ver: " + String(SketchVersion));
+  DEBUG_PRINT(F("StartStart_ver: "));
+  DEBUG_PRINTLN(String(SketchVersion));
   memoryInit();
   lcd.init();
   lcd.backlight();
