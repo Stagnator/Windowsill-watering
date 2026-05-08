@@ -93,7 +93,6 @@ const unsigned long WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
 const int eepromSize = EEPROM.length();
 
-
 void memoryInit()
 {
   DEBUG_PRINTLN(F("\nStart StoreFlashData on "));
@@ -322,11 +321,12 @@ void encBtnLongPressStart()
 void setup()
 {
   Wire.begin();
-  Wire.setClock(100000); // Set I2C clock to 100kHz
+  Wire.setClock(100000);           // Set I2C clock to 100kHz
   Wire.setWireTimeout(3000, true); // Таймаут 3мс, сбрасывать шину при зависании
-
+#ifdef DEBUG_ENABLE
   Serial.begin(115200); // Init serial output for debug
-  delay(2000); // 2 seconds delay for stable start and to read initial debug messages
+  delay(2000);          // 2 seconds delay for stable start and to read initial debug messages
+#endif
 
   pinMode(pinAlarmLED, OUTPUT);
   pinMode(10, INPUT);
