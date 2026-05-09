@@ -22,12 +22,15 @@ void PUMPER::init()
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
   pinMode(pumpPinNo, OUTPUT);
+  digitalWrite(pumpPinNo, !pumpPinState); // OFF
   pumpBtn.setLongPressIntervalMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
   pumpBtn.attachDoubleClick(staticDoubleClickHandler, this);
   pumpBtn.attachLongPressStart(staticLongPressStartHandler, this);
   pumpBtn.attachDuringLongPress(staticDuringLongPressHandler, this);
   pumpBtn.attachLongPressStop(staticLongPressStopHandler, this);
+
+  
 
   if (isStorageEmpty())
   {
@@ -95,6 +98,17 @@ void PUMPER::readDataEPR()
   }
   pumpSetup.D.pumpTime = constrain(pumpSetup.D.pumpTime, 0, 10);
   pumpSetup.D.pumpPause = constrain(pumpSetup.D.pumpPause, 0, 20);
+  /*DEBUG_PRINT(F("Pump read from EEPROM, pump "));
+    DEBUG_PRINT(pumpNo);
+    DEBUG_PRINT(F(": "));
+    DEBUG_PRINT(pumpSetup.D.minM);
+    DEBUG_PRINT(F("%, "));
+    DEBUG_PRINT(pumpSetup.D.maxM);
+    DEBUG_PRINT(F("%, "));
+    DEBUG_PRINT(pumpSetup.D.pumpTime);
+    DEBUG_PRINT(F("s, "));
+    DEBUG_PRINT(pumpSetup.D.pumpPause);
+    DEBUG_PRINTLN(F("s"));*/
 }
 
 void PUMPER::diasableEnablePump()
@@ -108,7 +122,7 @@ void PUMPER::diasableEnablePump()
   {
     pumpStatus = _STOP_PUMP;
     pumpPinState = LOW;
-    digitalWrite(pumpPinNo, pumpPinState);
+    digitalWrite(pumpPinNo, !pumpPinState);
   }
 
 } //
@@ -126,7 +140,7 @@ void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
       pumpStatus = _ERROR;
       pumpPinState = LOW;
     }
-    digitalWrite(pumpPinNo, pumpPinState);
+    digitalWrite(pumpPinNo, !pumpPinState);
     previousMillis = currentMillis;
   }
 }
@@ -136,7 +150,7 @@ void PUMPER::stopIt()
   pumpStatus = _STOP_PUMP;
   runUpCounter = 0;
   pumpPinState = LOW;
-  digitalWrite(pumpPinNo, pumpPinState);
+  digitalWrite(pumpPinNo, !pumpPinState);
   pumpBtn.tick();
 }
 
@@ -155,7 +169,7 @@ void PUMPER::pumpIt()
     {
       pumpStatus = _WAITING;
       pumpPinState = LOW;
-      digitalWrite(pumpPinNo, pumpPinState);
+      digitalWrite(pumpPinNo, !pumpPinState);
       runUpCounter = 0;
     }
     else
@@ -164,7 +178,7 @@ void PUMPER::pumpIt()
       {
         pumpStatus = _OUT_OF_WATER;
         pumpPinState = LOW;
-        digitalWrite(pumpPinNo, pumpPinState);
+        digitalWrite(pumpPinNo, !pumpPinState);
         return;
       }
       nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, pumpSetup.D.pumpPause * 1000);

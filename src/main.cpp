@@ -1,4 +1,4 @@
- // #define DEBUG
+// #define DEBUG
 //==========================================================//
 // Windowsill garden watering sysytem for three pumping zones//
 //==========================================================//
@@ -26,7 +26,7 @@
 | -Capacitive Moisture Sensor (analog input)   |
 | -Resestive Sensor for watertank's            |
 |    empty control (HIGH is empty)             |
-| -Pump ON/OFF reley                           |
+| -Pump ON/OFF reley (ON-LOW, OFF-HIGH)        |
 | -Pump control button                         |
 \=============================================*/
 
@@ -59,12 +59,12 @@ tUnionSetting initPumpSetup[NB_OF_PUMPS]{
     {{20, 60, 2, 10}},
     {{20, 60, 2, 10}}}; // array of pumps settings
 
-static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo", "MAXMo", "PumpTime", "PumpPause"};
+static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo", "MAXMo", "PumpT", "PumpP"};
 //=====================================
 
 // hardware assignements
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::FOUR3);
+RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
 OneButton encoderBtn(pinOfEncoder[2], true);
 OneButton startStopButton(pinINT0StopButton, true, true); // true for active LOW, true for pullup
 // Global variables
@@ -80,6 +80,7 @@ volatile ECurrStatus currentStatus = _STOP;
 PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 
 const unsigned long WRITTEN_SIGNATURE = 0xBEEFDEED;
+const unsigned int eepromOffset =0; // offset in EEPROM for storing pump settings (to avoid overwriting with other data if needed)
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
 const int eepromSize = EEPROM.length();
 
@@ -89,29 +90,16 @@ void memoryInit()
   DEBUG_PRINT(F("EEPROM length: "));
   DEBUG_PRINTLN(eepromSize);
   // Check signature at address
-  unsigned int storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
-  unsigned int a = 0;
+  unsigned int storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS+8+eepromOffset;
+  unsigned long a = 0;
   EEPROM.get(storedAddress, a);
   if (a != WRITTEN_SIGNATURE)
   {
-    EEPROM.put(0, initPumpSetup);
+    DEBUG_PRINTLN(F("SignTURE not found, writing initial data to EEPROM"));
+    EEPROM.put(eepromOffset, initPumpSetup);
     EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
   }
-  EEPROM.get(0, pumpSetupFromEPR);
-  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-  {
-    DEBUG_PRINT(F("Pump read from EEPROM, pump "));
-    DEBUG_PRINT(i);
-    DEBUG_PRINT(F(": "));
-    DEBUG_PRINT(pumpSetupFromEPR[i].D.minM);
-    DEBUG_PRINT(F("%, "));
-    DEBUG_PRINT(pumpSetupFromEPR[i].D.maxM);
-    DEBUG_PRINT(F("%, "));
-    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpTime);
-    DEBUG_PRINT(F("s, "));
-    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpPause);
-    DEBUG_PRINTLN(F("s"));
-  }
+  
 }
 
 void startStop()
@@ -245,6 +233,25 @@ void handleLCDandLED()
   }
 }
 
+void handleLCDSetupMode()
+{
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  
+  lcd.print("Pump N: ");
+  lcd.print(selectedPump + 1);
+
+  lcd.setCursor(0, 1);
+  
+  lcd.print("Set ");
+  lcd.print(nameOfSetting[settingIndex]);
+  lcd.print(": ");
+      lcd.print(oldValue);
+      
+      lcd.print("s-%");
+      
+}
+
 void encBtnDoubleClick()
 {
   if (currentStatus != _SETUP_MODE)
@@ -254,23 +261,29 @@ void encBtnDoubleClick()
     oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
     encoder.setPosition(oldValue);
     currentStatus = _SETUP_MODE;
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Pump N: ");
-    lcd.print(selectedPump + 1);
-    lcd.setCursor(0, 1);
-    lcd.print("Set ");
-    lcd.print(nameOfSetting[settingIndex]);
-    lcd.print(": ");
-    lcd.print(oldValue);
-    lcd.print("sec(%)");
+    handleLCDSetupMode();
   }
   else
   {
-    EEPROM.put(0, pumpSetupFromEPR);
+    EEPROM.put(eepromOffset, pumpSetupFromEPR);
+    handleLCDSetupMode();
+    
+  
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     {
+      DEBUG_PRINT(F("Pump write to EEPROM, pump "));
+    DEBUG_PRINT(i);
+    DEBUG_PRINT(F(": "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.minM);
+    DEBUG_PRINT(F("%, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.maxM);
+    DEBUG_PRINT(F("%, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpTime);
+    DEBUG_PRINT(F("s, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpPause);
+    DEBUG_PRINTLN(F("s"));
       myPump[i].init();
+      
     }
     currentStatus = _RUN;
   }
@@ -295,6 +308,7 @@ void encBtnClick()
   }
   oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
   encoder.setPosition(oldValue);
+  handleLCDSetupMode();
 }
 
 void encBtnLongPressStart()
@@ -306,18 +320,20 @@ void encBtnLongPressStart()
   }
   oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
   encoder.setPosition(oldValue);
+  handleLCDSetupMode();
 }
 
 void setup()
 {
   Wire.begin();
   Wire.setClock(100000);           // Set I2C clock to 100kHz
-  Wire.setWireTimeout(3000, true); // Таймаут 3мс, сбрасывать шину при зависании
+ // Wire.setWireTimeout(3000, true); // Таймаут 3мс, сбрасывать шину при зависании
 #ifdef DEBUG_ENABLE
-  Serial.begin(115200); // Init serial output for debug
+  Serial.begin(57600); // Init serial output for debug
   delay(2000);          // 2 seconds delay for stable start and to read initial debug messages
 #endif
-
+EEPROM.begin(); // Init EEPROM for LGT8F328P
+// EEPROM.clear(); // Clear EEPROM (for testing, remove in production)
   pinMode(pinAlarmLED, OUTPUT);
   pinMode(10, INPUT);
   pinMode(11, INPUT);
@@ -325,6 +341,7 @@ void setup()
   DEBUG_PRINT(F("StartStart_ver: "));
   DEBUG_PRINTLN(String(SketchVersion));
   memoryInit();
+  delay(50);
   lcd.init();
   lcd.backlight();
   // lcd.noBacklight();
@@ -342,9 +359,26 @@ void setup()
   // Setup external interrupts for STOP button and leak sensors
   pinMode(pinINT0StopButton, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), staticStartStopISR, FALLING);
-  // pinMode(pinINT1AlarmSensors, INPUT);
-  // attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
+  pinMode(pinINT1AlarmSensors, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
   startStopButton.attachClick(startStopButtonClick);
+
+  EEPROM.get(eepromOffset, pumpSetupFromEPR);
+  /*for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+  {
+    DEBUG_PRINT(F("Pump read from EEPROM, pump "));
+    DEBUG_PRINT(i);
+    DEBUG_PRINT(F(": "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.minM);
+    DEBUG_PRINT(F("%, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.maxM);
+    DEBUG_PRINT(F("%, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpTime);
+    DEBUG_PRINT(F("s, "));
+    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpPause);
+    DEBUG_PRINTLN(F("s"));
+    
+  }*/
 
   currentStatus = _RUN;
 
@@ -392,18 +426,27 @@ void loop()
       pumpSetupFromEPR[selectedPump].B[settingIndex] = newValue;
 
       lcd.setCursor(0, 0);
+      DEBUG_PRINT(F("Pump N: "));
+      DEBUG_PRINTLN(selectedPump + 1);
       lcd.print("Pump N: ");
       lcd.print(selectedPump + 1);
+
       lcd.setCursor(0, 1);
+      DEBUG_PRINT(F("Set "));
+      DEBUG_PRINT(nameOfSetting[settingIndex]);
       lcd.print("Set ");
       lcd.print(nameOfSetting[settingIndex]);
+      DEBUG_PRINT(": ");
+      DEBUG_PRINT(newValue);
       lcd.print(": ");
       lcd.print(newValue);
-      lcd.print("sec(%)");
+      DEBUG_PRINTLN(F("sec(%)"));
+      lcd.print("s-%");
       oldValue = newValue;
     }
   }
 
   encoderBtn.tick();
   startStopButton.tick();
+  delay(10);
 }
