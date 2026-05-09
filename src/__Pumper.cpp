@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <EEPROM.h>
+#include "debug.h"
 #include "_Pumper.h"
+
 
 PUMPER::PUMPER() {}
 
@@ -30,10 +32,12 @@ void PUMPER::init()
   if (isStorageEmpty())
   {
     pumpStatus = _OUT_OF_WATER;
-    DEBUG_PRINTLN(F("pump out of water: ") + String(pumpNo));
+    DEBUG_PRINT(F("pump out of water: "));
+    DEBUG_PRINTLN(pumpNo);
   }
 
-  DEBUG_PRINTLN(F("pump ready: ") + String(pumpNo));
+  DEBUG_PRINT(F("pump ready: "));
+  DEBUG_PRINTLN(pumpNo);
 }
 
 void PUMPER::pumpGo()
@@ -229,28 +233,33 @@ void PUMPER::staticLongPressStopHandler(void *scope)
 void PUMPER::LongPressStart()
 {
   
-  DEBUG_PRINTLN(F("\t - LongPressStart()") + String(pumpNo));
+  DEBUG_PRINT(F("\t - LongPressStart()"));
+  DEBUG_PRINTLN(pumpNo);
   diasableEnablePump();
 }
 
 void PUMPER::LongPressStop()
 {
-  DEBUG_PRINTLN(F("\t - LongPressStop()\n") + String(pumpNo));
+  DEBUG_PRINT(F("\t - LongPressStop()\n"));
+  DEBUG_PRINTLN(pumpNo);
 }
 
 void PUMPER::DuringLongPress()
 {
-  DEBUG_PRINTLN(F("\t - DuringLongPress()") + String(pumpNo));
+  DEBUG_PRINT(F("\t - DuringLongPress()"));
+  DEBUG_PRINTLN(pumpNo);
 }
 
 void PUMPER::ClickFunction()
 {
   onePump();
-  DEBUG_PRINTLN(F("\t - ClickFunction()") + String(pumpNo));
+  DEBUG_PRINT(F("\t - ClickFunction()"));
+  DEBUG_PRINTLN(pumpNo);
 } // ClickFunction
 
 void PUMPER::DoubleClickFunction()
 {
   pumpGo();
-  DEBUG_PRINTLN(F("\t - DoubleClickFunction()") + String(pumpNo));
+  DEBUG_PRINT(F("\t - DoubleClickFunction()"));
+  DEBUG_PRINTLN(pumpNo);
 } // DoubleClickFunction

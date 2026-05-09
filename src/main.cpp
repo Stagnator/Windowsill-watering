@@ -1,4 +1,4 @@
-// #define DEBUG
+ // #define DEBUG
 //==========================================================//
 // Windowsill garden watering sysytem for three pumping zones//
 //==========================================================//
@@ -14,6 +14,7 @@
 #include <OneButton.h>
 #include <RotaryEncoder.h>
 #include <LiquidCrystal_I2C.h>
+#include "debug.h"
 
 #include "_Pumper.h" //Class and setup for pumper unit
 
@@ -28,17 +29,6 @@
 | -Pump ON/OFF reley                           |
 | -Pump control button                         |
 \=============================================*/
-
-#define DEBUG_ENABLE
-#ifdef DEBUG_ENABLE
-#define DEBUG_PRINT(x) Serial.print(x)
-#define DEBUG_PRINTLN(x) Serial.println(x)
-// #define DEBUG_BEGIN(speed)   Serial.begin(speed)
-#else
-#define DEBUG_PRINT(x)
-#define DEBUG_PRINTLN(x)
-// #define DEBUG_BEGIN(speed)
-#endif
 
 // Pins definitions
 static constexpr int pinOfSensor[NB_OF_PUMPS] = {A3, A6, A7};       // Pins connected to capacity sensors 1-2-3
