@@ -346,6 +346,16 @@ EEPROM.begin(); // Init EEPROM for LGT8F328P
   lcd.backlight();
   // lcd.noBacklight();
   displayInitPrint();
+  /*for (uint8_t i = 0; i < NB_OF_PUMPS; i++){
+    DEBUG_PRINT(F("Stoping pump "));
+    DEBUG_PRINTLN(i);
+    digitalWrite(pinOfPump[i], HIGH);
+    
+    pinMode(pinOfPump[i], OUTPUT);
+    delay(500);
+    digitalWrite(pinOfPump[i], HIGH);
+  }*/
+  
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]);
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
@@ -380,7 +390,7 @@ EEPROM.begin(); // Init EEPROM for LGT8F328P
     
   }*/
 
-  currentStatus = _RUN;
+  currentStatus = _STOP;
 
   oldString1.reserve(16);
   oldString1 = "";

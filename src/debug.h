@@ -5,7 +5,8 @@
 
 // Enable debug output by defining DEBUG_ENABLE before including this header,
 // or uncomment the next line to enable it project-wide.
-//#define DEBUG_ENABLE
+
+#define DEBUG_ENABLE
 
 #ifdef DEBUG_ENABLE
 #define DEBUG_PRINT(x) Serial.print(x)

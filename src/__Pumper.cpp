@@ -3,7 +3,6 @@
 #include "debug.h"
 #include "_Pumper.h"
 
-
 PUMPER::PUMPER() {}
 
 PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin)
@@ -21,16 +20,13 @@ void PUMPER::init()
 
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
-  pinMode(pumpPinNo, OUTPUT);
-  digitalWrite(pumpPinNo, !pumpPinState); // OFF
+  pumpOnOff(LOW); // OFF
   pumpBtn.setLongPressIntervalMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
   pumpBtn.attachDoubleClick(staticDoubleClickHandler, this);
   pumpBtn.attachLongPressStart(staticLongPressStartHandler, this);
   pumpBtn.attachDuringLongPress(staticDuringLongPressHandler, this);
   pumpBtn.attachLongPressStop(staticLongPressStopHandler, this);
-
-  
 
   if (isStorageEmpty())
   {
@@ -41,6 +37,19 @@ void PUMPER::init()
 
   DEBUG_PRINT(F("pump ready: "));
   DEBUG_PRINTLN(pumpNo);
+}
+
+void PUMPER::pumpOnOff(bool on)
+{
+
+  if (on)
+  {
+    digitalWrite(pumpPinNo, pumpPinState);
+    pinMode(pumpPinNo, OUTPUT);
+  }
+
+  else
+    pinMode(pumpPinNo, INPUT_PULLUP);
 }
 
 void PUMPER::pumpGo()
@@ -122,7 +131,7 @@ void PUMPER::diasableEnablePump()
   {
     pumpStatus = _STOP_PUMP;
     pumpPinState = LOW;
-    digitalWrite(pumpPinNo, !pumpPinState);
+    pumpOnOff(pumpPinState);
   }
 
 } //
@@ -140,7 +149,7 @@ void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
       pumpStatus = _ERROR;
       pumpPinState = LOW;
     }
-    digitalWrite(pumpPinNo, !pumpPinState);
+    pumpOnOff(pumpPinState);
     previousMillis = currentMillis;
   }
 }
@@ -150,7 +159,7 @@ void PUMPER::stopIt()
   pumpStatus = _STOP_PUMP;
   runUpCounter = 0;
   pumpPinState = LOW;
-  digitalWrite(pumpPinNo, !pumpPinState);
+  pumpOnOff(pumpPinState);
   pumpBtn.tick();
 }
 
@@ -169,7 +178,7 @@ void PUMPER::pumpIt()
     {
       pumpStatus = _WAITING;
       pumpPinState = LOW;
-      digitalWrite(pumpPinNo, !pumpPinState);
+      pumpOnOff(pumpPinState);
       runUpCounter = 0;
     }
     else
@@ -178,7 +187,7 @@ void PUMPER::pumpIt()
       {
         pumpStatus = _OUT_OF_WATER;
         pumpPinState = LOW;
-        digitalWrite(pumpPinNo, !pumpPinState);
+        pumpOnOff(pumpPinState);
         return;
       }
       nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, pumpSetup.D.pumpPause * 1000);
@@ -246,7 +255,7 @@ void PUMPER::staticLongPressStopHandler(void *scope)
 //-------------------------------------button----------------
 void PUMPER::LongPressStart()
 {
-  
+
   DEBUG_PRINT(F("\t - LongPressStart()"));
   DEBUG_PRINTLN(pumpNo);
   diasableEnablePump();

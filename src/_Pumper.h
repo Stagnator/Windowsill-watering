@@ -60,6 +60,7 @@ private:
   unsigned long previousMillis; // For counting time in millis
 
   void readMoisture();                                                  // +Refresh current moisture from capacity sensor 0-100%
+  void pumpOnOff(bool on);                                                   // +Turn pump ON or OFF
   void onePump();                                                       // + One time of shot pamping (for calibrating purposes)
   void pumpGo();                                                        // + Just start pumping to desired moisture level
   bool isStorageEmpty();                                                // +Check if water storage is empty (for resistive sensor)
