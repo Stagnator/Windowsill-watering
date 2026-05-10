@@ -13,14 +13,14 @@ PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t 
 void PUMPER::init()
 {
   pumpStatus = _WAITING;
-  pumpPinState = LOW;
+  pumpPinState = OFF;
   currMoist = 0;
   readMoisture();
   readDataEPR();
 
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
-  pumpOnOff(LOW); // OFF
+  pumpOnOff(OFF); // OFF
   pumpBtn.setLongPressIntervalMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
   pumpBtn.attachDoubleClick(staticDoubleClickHandler, this);
@@ -41,15 +41,13 @@ void PUMPER::init()
 
 void PUMPER::pumpOnOff(bool on)
 {
-
   if (on)
-  {
-    digitalWrite(pumpPinNo, pumpPinState);
-    pinMode(pumpPinNo, OUTPUT);
-  }
-
+    pinMode(pumpPinNo, INPUT_PULLUP); // High impedance state, pump OFF (for LOW active pump). Got very sesetive modules
   else
-    pinMode(pumpPinNo, INPUT_PULLUP);
+  {
+    pinMode(pumpPinNo, OUTPUT);
+    digitalWrite(pumpPinNo, pumpPinState); // pumpPinState is LOW for ON, High impedance state for OFF (for LOW active pump)
+  }
 }
 
 void PUMPER::pumpGo()
@@ -130,7 +128,7 @@ void PUMPER::diasableEnablePump()
   else
   {
     pumpStatus = _STOP_PUMP;
-    pumpPinState = LOW;
+    pumpPinState = OFF;
     pumpOnOff(pumpPinState);
   }
 
@@ -147,7 +145,7 @@ void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
     if (runUpCounter >= maxPumpCykles * 2)
     {
       pumpStatus = _ERROR;
-      pumpPinState = LOW;
+      pumpPinState = OFF;
     }
     pumpOnOff(pumpPinState);
     previousMillis = currentMillis;
@@ -158,7 +156,7 @@ void PUMPER::stopIt()
 {
   pumpStatus = _STOP_PUMP;
   runUpCounter = 0;
-  pumpPinState = LOW;
+  pumpPinState = OFF;
   pumpOnOff(pumpPinState);
   pumpBtn.tick();
 }
@@ -177,7 +175,7 @@ void PUMPER::pumpIt()
     if (currMoist >= pumpSetup.D.maxM)
     {
       pumpStatus = _WAITING;
-      pumpPinState = LOW;
+      pumpPinState = OFF;
       pumpOnOff(pumpPinState);
       runUpCounter = 0;
     }
@@ -186,7 +184,7 @@ void PUMPER::pumpIt()
       if (isStorageEmpty())
       {
         pumpStatus = _OUT_OF_WATER;
-        pumpPinState = LOW;
+        pumpPinState = OFF;
         pumpOnOff(pumpPinState);
         return;
       }

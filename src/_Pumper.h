@@ -7,6 +7,10 @@
 //=====================================
 #include <Arduino.h>
 #include <OneButton.h>
+
+#define ON  LOW
+#define OFF HIGH
+
 /* Enums */
 
 // pumps status
