@@ -50,7 +50,6 @@ typedef enum
 {
   _STOP,       // System halted
   _RUN,        // Sysytem works
-  _WATER_OUT,  // Water storage is empty
   _SETUP_MODE, // System in setup mode
   _ALARM       // Leaking detected
 } ECurrStatus;
@@ -75,6 +74,7 @@ uint8_t selectedPump = 0;
 uint8_t settingIndex = 0;
 unsigned long previousMillis = 0;
 bool ledState = LOW;
+bool backLightState = LOW;
 String oldString1, oldString2;
 String newString1, newString2;
 uint8_t oldValue, newValue;
@@ -108,21 +108,6 @@ void memoryReset()
   EEPROM.put(storedAddress, 0x66); // Clear signature to force re-writing of initial data on next start
   DEBUG_PRINTLN(F("Memory reset, signature cleared"));
   memoryInit();
-}
-
-void startStop()
-{
-
-  if (currentStatus == _STOP)
-  {
-    currentStatus = _RUN;
-    DEBUG_PRINTLN(F("Start button pressed, system started"));
-  }
-  else
-  {
-    currentStatus = _STOP;
-    DEBUG_PRINTLN(F("Stop button pressed, system stopped"));
-  }
 }
 
 void leakAlarmOn()
@@ -160,10 +145,36 @@ void displayInitPrint()
   lcd.clear();
 }
 
+void handleLED()
+{
+  if (currentStatus == _ALARM)
+  {
+    alarmLedBlink(200, 200);
+    return;
+  }
+
+  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+  {
+    if (myPump[i].getStatus() == _OUT_OF_WATER || myPump[i].getStatus() == _ERROR)
+    {
+      alarmLedBlink(200, 600);
+      return;
+    }
+  }
+
+  if (currentStatus == _STOP)
+  {
+    alarmLedBlink(600, 200);
+    return;
+  }
+  ledState = LOW;
+  digitalWrite(pinAlarmLED, ledState);
+}
+
 // M% 99 55 33 44 5
 // ST SP 66 22 ER WT
 // STOP RUN WAIT ERROR WATER
-void handleLCDandLED()
+void handleLCD()
 {
   newString1 = "M% ";
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
@@ -176,7 +187,6 @@ void handleLCDandLED()
   {
   case _STOP:
     newString1 += " STOP";
-    alarmLedBlink(1000, 200);
     break;
   case _RUN:
     newString1 += " +RUN";
@@ -186,11 +196,6 @@ void handleLCDandLED()
     break;
   case _ALARM:
     newString1 += " ALRM";
-    alarmLedBlink(200, 200);
-    break;
-  case _WATER_OUT:
-    newString1 += " +RUN";
-    alarmLedBlink(200, 1000);
     break;
   }
   if (newString1 != oldString1)
@@ -220,6 +225,9 @@ void handleLCDandLED()
       break;
     case _ERROR:
       newString2 += "ER ";
+      break;
+    case _ONE_TIME:
+      newString2 += "OT ";
       break;
     }
     if (i < NB_OF_PUMPS - 1)
@@ -260,7 +268,16 @@ void staticStartStopISR()
 
 void startStopButtonClick()
 {
-  startStop();
+  if (currentStatus == _STOP)
+  {
+    currentStatus = _RUN;
+    DEBUG_PRINTLN(F("Start button pressed, system started"));
+  }
+  else
+  {
+    currentStatus = _STOP;
+    DEBUG_PRINTLN(F("Stop button pressed, system stopped"));
+  }
 }
 
 void startStopButtonLongPress()
@@ -270,7 +287,21 @@ void startStopButtonLongPress()
   {
     myPump[i].init();
   }
-  handleLCDandLED();
+  handleLCD();
+}
+
+void startStopButtonDoubleClick()
+{
+  if (backLightState == LOW)
+  {
+    backLightState = HIGH;
+    lcd.backlight();
+  }
+  else
+  {
+    backLightState = LOW;
+    lcd.noBacklight();
+  }
 }
 
 void encBtnClick()
@@ -300,7 +331,7 @@ void encBtnDoubleClick()
   {
     EEPROM.put(0, pumpSetupFromEPR);
 
-    handleLCDSetupMode();
+    lcd.clear();
 
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     {
@@ -337,7 +368,7 @@ void setup()
 {
   Wire.begin();
   Wire.setClock(100000); // Set I2C clock to 100kHz
-                         // Wire.setWireTimeout(3000, true); // Таймаут 3мс, сбрасывать шину при зависании
+
 #ifdef DEBUG_ENABLE
   Serial.begin(57600); // Init serial output for debug
   delay(2000);         // 2 seconds delay for stable start and to read initial debug messages
@@ -351,8 +382,9 @@ void setup()
   memoryInit();
 
   lcd.init();
+  backLightState = HIGH;
   lcd.backlight();
-  // lcd.noBacklight();
+
   displayInitPrint();
 
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
@@ -373,6 +405,7 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
   startStopButton.attachClick(startStopButtonClick);
   startStopButton.attachLongPressStart(startStopButtonLongPress);
+  startStopButton.attachDoubleClick(startStopButtonDoubleClick);
 
   EEPROM.get(0, pumpSetupFromEPR);
 
@@ -392,7 +425,11 @@ void setup()
 
   }*/
 
+#ifdef DEBUG_ENABLE
   currentStatus = _STOP;
+#else
+  currentStatus = _RUN;
+#endif
 
   oldString1.reserve(16);
   oldString1 = "                ";
@@ -400,29 +437,30 @@ void setup()
   oldString2 = "                ";
   newString1.reserve(16);
   newString2.reserve(16);
-  handleLCDandLED();
+  handleLCD();
 }
 
 void loop()
 {
+  encoderBtn.tick();
+  startStopButton.tick();
+
   switch (currentStatus)
   {
   case _ALARM:
+  case _STOP:
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-      myPump[i].stopIt();
-    handleLCDandLED();
+      if (myPump[i].getStatus() != _STOP_PUMP)
+      {
+        myPump[i].stopIt();
+      }
+    handleLCD();
     break;
 
   case _RUN:
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
       myPump[i].handlePump();
-    handleLCDandLED();
-    break;
-
-  case _STOP:
-    for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-      myPump[i].stopIt();
-    handleLCDandLED();
+    handleLCD();
     break;
 
   case _SETUP_MODE:
@@ -457,7 +495,6 @@ void loop()
     break;
   }
 
-  encoderBtn.tick();
-  startStopButton.tick();
+  handleLED();
   delay(10);
 }
