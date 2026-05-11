@@ -15,11 +15,10 @@ void PUMPER::init()
   pumpStatus = _WAITING;
   pumpPinState = OFF;
   currMoist = 0;
-  readMoisture();
-  readDataEPR();
-
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
+  readMoisture();
+  readDataEPR();
   pumpOnOff(OFF); // OFF
   pumpBtn.setLongPressIntervalMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
@@ -52,21 +51,14 @@ void PUMPER::pumpOnOff(bool on)
 
 void PUMPER::pumpGo()
 {
-  if (isStorageEmpty())
+
+  if (pumpStatus == _WAITING)
   {
-    pumpStatus = _OUT_OF_WATER;
-    return;
+    pumpStatus = _RUNNING;
   }
-  else
+  else if (pumpStatus == _RUNNING)
   {
-    if (pumpStatus == _WAITING)
-    {
-      pumpStatus = _RUNNING;
-    }
-    else if (pumpStatus == _RUNNING)
-    {
-      pumpStatus = _WAITING;
-    }
+    pumpStatus = _WAITING;
   }
 }
 
@@ -78,15 +70,7 @@ void PUMPER::readMoisture()
 
 void PUMPER::onePump()
 {
-  if (pumpStatus == _OUT_OF_WATER)
-    pumpStatus = _WAITING;
-
-  if (isStorageEmpty())
-  {
-    pumpStatus = _OUT_OF_WATER;
-    return;
-  }
-  nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, 0);
+  pumpStatus = _ONE_TIME;
 } //
 
 bool PUMPER::isStorageEmpty()
@@ -97,6 +81,7 @@ bool PUMPER::isStorageEmpty()
 void PUMPER::readDataEPR()
 {
   EEPROM.get(pumpNo * sizeof(tUnionSetting), pumpSetup);
+  
   pumpSetup.D.minM = constrain(pumpSetup.D.minM, 0, 99); // Validate settings read from EEPROM
   pumpSetup.D.maxM = constrain(pumpSetup.D.maxM, 0, 99);
   if (pumpSetup.D.maxM < pumpSetup.D.minM)
@@ -105,31 +90,34 @@ void PUMPER::readDataEPR()
   }
   pumpSetup.D.pumpTime = constrain(pumpSetup.D.pumpTime, 0, 10);
   pumpSetup.D.pumpPause = constrain(pumpSetup.D.pumpPause, 0, 20);
-  /*DEBUG_PRINT(F("Pump read from EEPROM, pump "));
-    DEBUG_PRINT(pumpNo);
-    DEBUG_PRINT(F(": "));
-    DEBUG_PRINT(pumpSetup.D.minM);
-    DEBUG_PRINT(F("%, "));
-    DEBUG_PRINT(pumpSetup.D.maxM);
-    DEBUG_PRINT(F("%, "));
-    DEBUG_PRINT(pumpSetup.D.pumpTime);
-    DEBUG_PRINT(F("s, "));
-    DEBUG_PRINT(pumpSetup.D.pumpPause);
-    DEBUG_PRINTLN(F("s"));*/
+  DEBUG_PRINT(F("Pump read from EEPROM, pump "));
+  DEBUG_PRINT(pumpNo);
+  DEBUG_PRINT(F(": "));
+  DEBUG_PRINT(pumpSetup.D.minM);
+  DEBUG_PRINT(F("%, "));
+  DEBUG_PRINT(pumpSetup.D.maxM);
+  DEBUG_PRINT(F("%, "));
+  DEBUG_PRINT(pumpSetup.D.pumpTime);
+  DEBUG_PRINT(F("s, "));
+  DEBUG_PRINT(pumpSetup.D.pumpPause);
+  DEBUG_PRINTLN(F("s"));
 }
 
 void PUMPER::diasableEnablePump()
 {
   if (pumpStatus == _STOP_PUMP || pumpStatus == _ERROR)
   {
-    pumpStatus = _WAITING;
     runUpCounter = 0;
+    pumpStatus = _WAITING;
   }
   else
   {
+    if (pumpPinState != OFF)
+    {
+      pumpPinState = OFF;
+      pumpOnOff(pumpPinState);
+    }
     pumpStatus = _STOP_PUMP;
-    pumpPinState = OFF;
-    pumpOnOff(pumpPinState);
   }
 
 } //
@@ -137,7 +125,7 @@ void PUMPER::diasableEnablePump()
 void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
 {
   unsigned long currentMillis = millis();
-  unsigned long interval = pumpPinState ? onTime : offTime;
+  unsigned long interval = !pumpPinState ? onTime : offTime;
   if (currentMillis - previousMillis >= interval)
   {
     pumpPinState = !pumpPinState;
@@ -154,49 +142,93 @@ void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
 
 void PUMPER::stopIt()
 {
-  pumpStatus = _STOP_PUMP;
+  if (pumpPinState != OFF)
+  {
+    pumpPinState = OFF;
+    pumpOnOff(pumpPinState);
+  }
   runUpCounter = 0;
-  pumpPinState = OFF;
-  pumpOnOff(pumpPinState);
-  pumpBtn.tick();
+  pumpStatus = _STOP_PUMP;
 }
 
-void PUMPER::tick()
+/*void PUMPER::tick()
 {
   pumpBtn.tick();
-}
+}*/
 
-void PUMPER::pumpIt()
+void PUMPER::handlePump()
 {
   pumpBtn.tick();
   readMoisture();
-  if (pumpStatus == _RUNNING)
+
+  if (isStorageEmpty())
   {
-    if (currMoist >= pumpSetup.D.maxM)
+    if (pumpStatus != _OUT_OF_WATER)
+    {
+      pumpStatus = _OUT_OF_WATER;
+      DEBUG_PRINT(F("pump out of water: "));
+      DEBUG_PRINTLN(pumpNo);
+      if (pumpPinState != OFF)
+      {
+        pumpPinState = OFF;
+        pumpOnOff(pumpPinState);
+      }
+      runUpCounter = 0;
+    }
+  }
+
+  switch (pumpStatus)
+  {
+
+  case _ERROR:
+
+  case _STOP_PUMP:
+
+    break;
+
+  case _OUT_OF_WATER:
+    if (!isStorageEmpty())
     {
       pumpStatus = _WAITING;
+    }
+
+    break;
+
+  case _WAITING:
+    if (pumpPinState != OFF)
+    {
       pumpPinState = OFF;
       pumpOnOff(pumpPinState);
       runUpCounter = 0;
     }
-    else
-    {
-      if (isStorageEmpty())
-      {
-        pumpStatus = _OUT_OF_WATER;
-        pumpPinState = OFF;
-        pumpOnOff(pumpPinState);
-        return;
-      }
-      nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, pumpSetup.D.pumpPause * 1000);
-    }
-  }
-  else if (pumpStatus == _WAITING)
-  {
     if (currMoist <= pumpSetup.D.minM)
     {
       pumpStatus = _RUNNING;
     }
+    break;
+
+  case _RUNNING:
+    if (currMoist >= pumpSetup.D.maxM)
+    {
+      pumpPinState = OFF;
+      pumpOnOff(pumpPinState);
+      runUpCounter = 0;
+      pumpStatus = _WAITING;
+    }
+    else
+    {
+      nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, pumpSetup.D.pumpPause * 1000);
+    }
+    break;
+
+  case _ONE_TIME:
+    nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, 0);
+    if (pumpPinState == OFF)
+    {
+      runUpCounter = 0;
+      pumpStatus = _WAITING;
+    }
+    break;
   }
 }
 
