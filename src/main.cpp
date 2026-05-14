@@ -80,7 +80,8 @@ String newString1, newString2;
 uint8_t oldValue, newValue;
 volatile ECurrStatus currentStatus = _STOP;
 
-PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
+//PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
+PUMPER myPump [NB_OF_PUMPS];
 
 const unsigned long WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
