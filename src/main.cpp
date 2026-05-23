@@ -80,8 +80,8 @@ String newString1, newString2;
 uint8_t oldValue, newValue;
 volatile ECurrStatus currentStatus = _STOP;
 
-//PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
-PUMPER myPump [NB_OF_PUMPS];
+// PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
+PUMPER myPump[NB_OF_PUMPS];
 
 const unsigned long WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
@@ -158,21 +158,21 @@ void handleLED()
   {
     if (myPump[i].getStatus() == _OUT_OF_WATER || myPump[i].getStatus() == _ERROR)
     {
-      alarmLedBlink(200, 600);
+      alarmLedBlink(200, 2000);
       return;
     }
   }
 
   if (currentStatus == _STOP)
   {
-    alarmLedBlink(600, 200);
+    alarmLedBlink(2000, 200);
     return;
   }
   ledState = LOW;
   digitalWrite(pinAlarmLED, ledState);
 }
 
-// M% 99 55 33 44 5
+// M% 99 55 33 +RUN
 // ST SP 66 22 ER WT
 // STOP RUN WAIT ERROR WATER
 void handleLCD()
@@ -180,6 +180,7 @@ void handleLCD()
   newString1 = "M% ";
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
   {
+    newString1 += String(myPump[i].getMoisture() < 10 ? "0" : "");
     newString1 += String(myPump[i].getMoisture());
     if (i < NB_OF_PUMPS - 1)
       newString1 += " ";
@@ -307,6 +308,10 @@ void startStopButtonDoubleClick()
 
 void encBtnClick()
 {
+  if (currentStatus != _SETUP_MODE)
+  {    
+    return;
+  }
   settingIndex++;
   if (settingIndex >= sizeof(tUnionSetting) / sizeof(uint8_t))
   {
@@ -395,7 +400,10 @@ void setup()
   }
 
   // Setup encoder button
-  encoderBtn.setLongPressIntervalMs(800);
+  pinMode(pinOfEncoder[0], INPUT);
+  pinMode(pinOfEncoder[1], INPUT);
+
+  encoderBtn.setLongPressIntervalMs(3000);
   encoderBtn.attachClick(encBtnClick);
   encoderBtn.attachDoubleClick(encBtnDoubleClick);
   encoderBtn.attachLongPressStart(encBtnLongPressStart);
@@ -445,7 +453,6 @@ void loop()
 {
   encoderBtn.tick();
   startStopButton.tick();
-
   switch (currentStatus)
   {
   case _ALARM:
@@ -465,6 +472,7 @@ void loop()
     break;
 
   case _SETUP_MODE:
+
     encoder.tick();
     long encPos = encoder.getPosition();
     newValue = constrain(encPos, 0, 99);

@@ -226,7 +226,7 @@ void PUMPER::handlePump()
     if (pumpPinState == OFF)
     {
       runUpCounter = 0;
-      pumpStatus = _WAITING;
+      pumpStatus = _STOP_PUMP;
     }
     break;
   }
