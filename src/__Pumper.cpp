@@ -64,8 +64,8 @@ void PUMPER::pumpGo()
 
 void PUMPER::readMoisture()
 {
-  int soilMoistureValue = analogRead(sensPinNo);
-  currMoist = constrain(map(soilMoistureValue, AirValue, WaterValue, 0, 100), 1, 99);
+  int soilMoistureValue = constrain(map(analogRead(sensPinNo), AirValue, WaterValue, 0, 100), 1, 99);
+  if (abs(currMoist - soilMoistureValue) > deBounsTr) currMoist = soilMoistureValue;
 }
 
 void PUMPER::onePump()

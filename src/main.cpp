@@ -113,7 +113,11 @@ void memoryReset()
 
 void leakAlarmOn()
 {
-  currentStatus = _ALARM;
+  delayMicroseconds(10); 
+  if (digitalRead(pinINT1AlarmSensors) == LOW) // Check if the pin is still LOW after debounce delay
+  {
+    currentStatus = _ALARM;
+  }
 }
 
 // Non-blocking LED blink using millis()
