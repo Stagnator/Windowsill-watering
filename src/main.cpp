@@ -33,8 +33,8 @@
 \=============================================*/
 
 // Pins definitions
-static constexpr int pinOfSensor[NB_OF_PUMPS] = {A3, A6, A7};       // Pins connected to capacity sensors 1-2-3
-static constexpr int pinOfPump[NB_OF_PUMPS] = {A0, A1, A2};         // Pins connected to pump relays 1-2-3
+static constexpr uint8_t pinOfSensor[NB_OF_PUMPS] = {A3, A6, A7};   // Pins connected to capacity sensors 1-2-3
+static constexpr uint8_t pinOfPump[NB_OF_PUMPS] = {A0, A1, A2};     // Pins connected to pump relays 1-2-3
 static constexpr uint8_t pinOfAlarmSensor[NB_OF_PUMPS] = {7, 8, 9}; // Pins connected to leak resestive sensors 1-2-3 in digital mode
 static constexpr uint8_t pinOfCntrlButton[NB_OF_PUMPS] = {4, 5, 6}; // Pins connected to control buttons 1-2-3
 static constexpr uint8_t pinOfEncoder[3] = {10, 11, 12};            // Pins connected to encoder (A, B, last number is encbutton)
@@ -57,9 +57,9 @@ typedef enum
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
     // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src)
-    {{20, 60, 2, 10}},
-    {{20, 60, 2, 10}},
-    {{20, 60, 2, 10}}}; // array of pumps settings
+    {{5, 50, 2, 10}},
+    {{5, 50, 2, 10}},
+    {{5, 50, 2, 10}}}; // array of pumps settings
 
 static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo", "MAXMo", "PumpT", "PumpP"};
 //=====================================
@@ -72,7 +72,7 @@ OneButton startStopButton(pinINT0StopButton, true, true); // true for active LOW
 // Global variables
 uint8_t selectedPump = 0;
 uint8_t settingIndex = 0;
-unsigned long previousMillis = 0;
+uint64_t previousMillis = 0;
 bool ledState = LOW;
 bool backLightState = LOW;
 String oldString1, oldString2;
@@ -83,10 +83,10 @@ volatile ECurrStatus currentStatus = _STOP;
 // PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 PUMPER myPump[NB_OF_PUMPS];
 
-const unsigned long WRITTEN_SIGNATURE = 0xBEEFDEED;
+const constexpr uint64_t WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
-const int eepromSize = EEPROM.length();
-const unsigned int storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
+const uint64_t eepromSize = EEPROM.length();
+const uint64_t storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
 
 void memoryInit()
 {
@@ -94,7 +94,7 @@ void memoryInit()
   DEBUG_PRINT(F("EEPROM length: "));
   DEBUG_PRINTLN(eepromSize);
   // Check signature at address
-  unsigned long a = 0;
+  uint64_t a = 0;
   EEPROM.get(storedAddress, a);
   if (a != WRITTEN_SIGNATURE)
   {
@@ -113,7 +113,7 @@ void memoryReset()
 
 void leakAlarmOn()
 {
-  delayMicroseconds(10); 
+  delayMicroseconds(10);
   if (digitalRead(pinINT1AlarmSensors) == LOW) // Check if the pin is still LOW after debounce delay
   {
     currentStatus = _ALARM;
@@ -122,10 +122,10 @@ void leakAlarmOn()
 
 // Non-blocking LED blink using millis()
 
-void alarmLedBlink(unsigned long onTime, unsigned long offTime)
+void alarmLedBlink(uint64_t onTime, uint64_t offTime)
 {
-  unsigned long currentMillis = millis();
-  unsigned long interval = ledState ? onTime : offTime;
+  uint64_t currentMillis = millis();
+  uint64_t interval = ledState ? onTime : offTime;
   if (currentMillis - previousMillis >= interval)
   {
     ledState = !ledState;
@@ -313,7 +313,7 @@ void startStopButtonDoubleClick()
 void encBtnClick()
 {
   if (currentStatus != _SETUP_MODE)
-  {    
+  {
     return;
   }
   settingIndex++;
@@ -403,10 +403,10 @@ void setup()
     myPump[i].init();
   }
 
-  // Setup encoder button
-  pinMode(pinOfEncoder[0], INPUT);
+  
+  pinMode(pinOfEncoder[0], INPUT); //encoder dont work withouot this settings!
   pinMode(pinOfEncoder[1], INPUT);
-
+// Setup encoder button
   encoderBtn.setLongPressIntervalMs(3000);
   encoderBtn.attachClick(encBtnClick);
   encoderBtn.attachDoubleClick(encBtnDoubleClick);
@@ -421,22 +421,6 @@ void setup()
   startStopButton.attachDoubleClick(startStopButtonDoubleClick);
 
   EEPROM.get(0, pumpSetupFromEPR);
-
-  /*for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-  {
-    DEBUG_PRINT(F("Pump read from EEPROM, pump "));
-    DEBUG_PRINT(i);
-    DEBUG_PRINT(F(": "));
-    DEBUG_PRINT(pumpSetupFromEPR[i].D.minM);
-    DEBUG_PRINT(F("%, "));
-    DEBUG_PRINT(pumpSetupFromEPR[i].D.maxM);
-    DEBUG_PRINT(F("%, "));
-    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpTime);
-    DEBUG_PRINT(F("s, "));
-    DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpPause);
-    DEBUG_PRINTLN(F("s"));
-
-  }*/
 
 #ifdef DEBUG_ENABLE
   currentStatus = _STOP;
@@ -509,5 +493,4 @@ void loop()
   }
 
   handleLED();
-  delay(10);
 }

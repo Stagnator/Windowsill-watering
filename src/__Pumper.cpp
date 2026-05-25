@@ -5,7 +5,7 @@
 
 PUMPER::PUMPER() {}
 
-PUMPER::PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin)
+PUMPER::PUMPER(const uint8_t i, const uint8_t sensPin, const uint8_t pumpPin, const uint8_t alarmPin, const uint8_t buttonPin)
     : pumpNo(i), pumpBtn(buttonPin, true, true), sensPinNo(sensPin), pumpPinNo(pumpPin), alarmPinNo(alarmPin)
 {
 }
@@ -14,12 +14,12 @@ void PUMPER::init()
 {
   pumpStatus = _WAITING;
   pumpPinState = OFF;
-  currMoist = 0;
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
-  readMoisture();
   readDataEPR();
   pumpOnOff(OFF); // OFF
+  currMoist = map(analogRead(sensPinNo), AirValue, WaterValue, 1, 99);
+
   pumpBtn.setLongPressIntervalMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
   pumpBtn.attachDoubleClick(staticDoubleClickHandler, this);
@@ -64,8 +64,31 @@ void PUMPER::pumpGo()
 
 void PUMPER::readMoisture()
 {
-  int soilMoistureValue = constrain(map(analogRead(sensPinNo), AirValue, WaterValue, 0, 100), 1, 99);
-  if (abs(currMoist - soilMoistureValue) > deBounsTr) currMoist = soilMoistureValue;
+  uint16_t mstReadB[3]; // Bufer for raw sensor readings to median
+  uint16_t medianRaw;     // Median of raw sensor readings
+
+  for (uint8_t i = 0; i < 3; ++i)
+  {
+    mstReadB[i] = analogRead(sensPinNo);
+    delay(SensorSampleDelayMs);
+  }
+
+  if ((mstReadB[0] <= mstReadB[1] && mstReadB[1] <= mstReadB[2]) ||
+      (mstReadB[0] >= mstReadB[1] && mstReadB[1] >= mstReadB[2]))
+  {
+    medianRaw = mstReadB[1];
+  }
+  else if ((mstReadB[1] <= mstReadB[0] && mstReadB[0] <= mstReadB[2]) ||
+           (mstReadB[1] >= mstReadB[0] && mstReadB[0] >= mstReadB[2]))
+  {
+    medianRaw = mstReadB[0];
+  }
+  else
+  {
+    medianRaw = mstReadB[2];
+  }
+
+  currMoist = (uint8_t)(alfaConst * map(medianRaw, AirValue, WaterValue, 1, 99) + (1 - alfaConst) * currMoist + 0.5f); // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
 }
 
 void PUMPER::onePump()
@@ -81,7 +104,7 @@ bool PUMPER::isStorageEmpty()
 void PUMPER::readDataEPR()
 {
   EEPROM.get(pumpNo * sizeof(tUnionSetting), pumpSetup);
-  
+
   pumpSetup.D.minM = constrain(pumpSetup.D.minM, 0, 99); // Validate settings read from EEPROM
   pumpSetup.D.maxM = constrain(pumpSetup.D.maxM, 0, 99);
   if (pumpSetup.D.maxM < pumpSetup.D.minM)
@@ -122,10 +145,10 @@ void PUMPER::diasableEnablePump()
 
 } //
 
-void PUMPER::nonBlockingPumpRun(unsigned long onTime, unsigned long offTime)
+void PUMPER::nonBlockingPumpRun(uint64_t onTime, uint64_t offTime)
 {
-  unsigned long currentMillis = millis();
-  unsigned long interval = !pumpPinState ? onTime : offTime;
+  uint64_t currentMillis = millis();
+  uint64_t interval = !pumpPinState ? onTime : offTime;
   if (currentMillis - previousMillis >= interval)
   {
     pumpPinState = !pumpPinState;

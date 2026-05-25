@@ -29,10 +29,11 @@ typedef enum
 // Dry: (565 430]
 // Wet: (430 350]
 // Water: (350 205]
-static constexpr int AirValue = 565;         // 100 % Calibration of sensors needed!
-static constexpr int WaterValue = 205;       // 0% Calibration of sensors needed!
-static constexpr uint8_t deBounsTr = 2; // Debounce for moisture readings in percent (to avoid false triggering of pump)
+static constexpr uint16_t AirValue = 565;         // 0 % Calibration of sensors needed!
+static constexpr uint16_t WaterValue = 205;       // 100% Calibration of sensors needed!
 static constexpr uint8_t maxPumpCykles = 60; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
+static constexpr uint8_t SensorSampleDelayMs = 2;      // Delay between sensor readings to stabilize the analog input
+static constexpr float alfaConst = 0.2; //alfa for EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
 //=====================================
 
 #pragma pack(push, 1)
@@ -56,14 +57,14 @@ class PUMPER
 private:
   uint8_t pumpNo; // self number of pump
   OneButton pumpBtn;
-  int sensPinNo, pumpPinNo;
+  uint8_t sensPinNo, pumpPinNo;
   uint8_t alarmPinNo, buttonPinNo;
   EStatusOfPump pumpStatus; // status
   tUnionSetting pumpSetup;  // pumpSetup.D.minM
   uint8_t currMoist;        // current moisture from capacitive sensor
   uint8_t runUpCounter;     // Runs up counter to avoid infinite pumping (for safety reasons)
   bool pumpPinState = OFF;
-  unsigned long previousMillis; // For counting time in millis
+  uint64_t previousMillis; // For counting time in millis
 
   void readMoisture();                                                  // +Refresh current moisture from capacity sensor 0-100%
   void pumpOnOff(bool on);                                              // +Turn pump ON or OFF
@@ -72,7 +73,7 @@ private:
   bool isStorageEmpty();                                                // +Check if water storage is empty (for resistive sensor)
   void readDataEPR();                                                   // Read pump settings from EEPROM
   void diasableEnablePump();                                            // Disable pump (for example, when leak is detected)
-  void nonBlockingPumpRun(unsigned long onTime, unsigned long offTime); // Non-blocking pumping to desired moisture level (for normal operation)
+  void nonBlockingPumpRun(uint64_t onTime, uint64_t offTime); // Non-blocking pumping to desired moisture level (for normal operation)
 
   static void staticClickHandler(void *scope);
   static void staticDoubleClickHandler(void *scope);
@@ -90,18 +91,16 @@ private:
 public:
   /* Constructors */
   PUMPER();
-  explicit PUMPER(const int i, const int sensPin, const int pumpPin, const uint8_t alarmPin, const uint8_t buttonPin);
+  explicit PUMPER(const uint8_t i, const uint8_t sensPin, const uint8_t pumpPin, const uint8_t alarmPin, const uint8_t buttonPin);
 
   /* Methods */
-  void init();                  //+
-  void stopIt();                // +(Emergency) Stop of pumping
-  void handlePump();            // +handle Pump
-  uint8_t getMoisture();        // +Return current moisture
-  uint8_t getDesiredMoisture(); // +Return desired moisture level
-  EStatusOfPump getStatus();    // +Return status
-  //void tick(); // +For handling button (to be called in main loop)
-
-
+  void init();                  //
+  void stopIt();                //(Emergency) Stop of pumping
+  void handlePump();            //handle Pump
+  uint8_t getMoisture();        //Return current moisture
+  uint8_t getDesiredMoisture(); //Return desired moisture level
+  EStatusOfPump getStatus();    //Return status
+  
 }; // class
 //========================================
 #endif /* PUMPER */
