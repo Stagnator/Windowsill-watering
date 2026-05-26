@@ -145,10 +145,10 @@ void PUMPER::diasableEnablePump()
 
 } //
 
-void PUMPER::nonBlockingPumpRun(uint64_t onTime, uint64_t offTime)
+void PUMPER::nonBlockingPumpRun(uint32_t onTime, uint32_t offTime)
 {
-  uint64_t currentMillis = millis();
-  uint64_t interval = !pumpPinState ? onTime : offTime;
+  uint32_t currentMillis = millis();
+  uint32_t interval = !pumpPinState ? onTime : offTime;
   if (currentMillis - previousMillis >= interval)
   {
     pumpPinState = !pumpPinState;

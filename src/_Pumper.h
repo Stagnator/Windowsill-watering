@@ -73,7 +73,7 @@ private:
   bool isStorageEmpty();                                                // +Check if water storage is empty (for resistive sensor)
   void readDataEPR();                                                   // Read pump settings from EEPROM
   void diasableEnablePump();                                            // Disable pump (for example, when leak is detected)
-  void nonBlockingPumpRun(uint64_t onTime, uint64_t offTime); // Non-blocking pumping to desired moisture level (for normal operation)
+  void nonBlockingPumpRun(uint32_t onTime, uint32_t offTime); // Non-blocking pumping to desired moisture level (for normal operation)
 
   static void staticClickHandler(void *scope);
   static void staticDoubleClickHandler(void *scope);

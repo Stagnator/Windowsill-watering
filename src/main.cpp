@@ -72,7 +72,7 @@ OneButton startStopButton(pinINT0StopButton, true, true); // true for active LOW
 // Global variables
 uint8_t selectedPump = 0;
 uint8_t settingIndex = 0;
-uint64_t previousMillis = 0;
+uint32_t previousMillis = 0;
 bool ledState = LOW;
 bool backLightState = LOW;
 String oldString1, oldString2;
@@ -83,10 +83,10 @@ volatile ECurrStatus currentStatus = _STOP;
 // PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 PUMPER myPump[NB_OF_PUMPS];
 
-const constexpr uint64_t WRITTEN_SIGNATURE = 0xBEEFDEED;
+const constexpr uint32_t WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
-const uint64_t eepromSize = EEPROM.length();
-const uint64_t storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
+const uint32_t eepromSize = EEPROM.length();
+const uint32_t storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
 
 void memoryInit()
 {
@@ -94,7 +94,7 @@ void memoryInit()
   DEBUG_PRINT(F("EEPROM length: "));
   DEBUG_PRINTLN(eepromSize);
   // Check signature at address
-  uint64_t a = 0;
+  uint32_t a = 0;
   EEPROM.get(storedAddress, a);
   if (a != WRITTEN_SIGNATURE)
   {
@@ -122,10 +122,10 @@ void leakAlarmOn()
 
 // Non-blocking LED blink using millis()
 
-void alarmLedBlink(uint64_t onTime, uint64_t offTime)
+void alarmLedBlink(uint32_t onTime, uint32_t offTime)
 {
-  uint64_t currentMillis = millis();
-  uint64_t interval = ledState ? onTime : offTime;
+  uint32_t currentMillis = millis();
+  uint32_t interval = ledState ? onTime : offTime;
   if (currentMillis - previousMillis >= interval)
   {
     ledState = !ledState;
