@@ -26,7 +26,7 @@
 | -Resestive Sensor for watertank's            |
 |    empty control (HIGH is empty)             |
 | -Pump ON/OFF reley module (ON-LOW, OFF-HIGH) |
-|   I have very sesetiv modules, so need to set|
+|   I'     ve very sensitive modules, so need to set|
 |   pinMode to INPUT_PULLUP for OFF state and  |
 |   OUTPUT with LOW for ON state               |
 | -Pump control button                         |
@@ -51,17 +51,18 @@ typedef enum
   _STOP,       // System halted
   _RUN,        // Sysytem works
   _SETUP_MODE, // System in setup mode
-  _ALARM       // Leaking detected
+  _ALARM,      // Leaking detected
+  _SENS_CALIB  // Sensor calibration mode
 } ECurrStatus;
 
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
-    // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src)
-    {{5, 50, 2, 10}},
-    {{5, 50, 2, 10}},
-    {{5, 50, 2, 10}}}; // array of pumps settings
+    // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src), SensorAirValue, SensorWaterValue
+    {{5, 50, 2, 10, 600, 200}},  // Pump 1 settings
+    {{5, 50, 2, 10, 600, 200}},  // Pump 2 settings
+    {{5, 50, 2, 10, 600, 200}}}; // Pump 3 settings
 
-static String nameOfSetting[sizeof(tUnionSetting) / sizeof(uint8_t)] = {"minMo", "MAXMo", "PumpT", "PumpP"};
+static String nameOfSetting[6] = {"minMo", "MAXMo", "PumpT", "PumpP", "SnAir", "SnWat"};
 //=====================================
 
 // hardware assignements
@@ -96,9 +97,10 @@ void memoryInit()
   // Check signature at address
   uint32_t a = 0;
   EEPROM.get(storedAddress, a);
+  DEBUG_PRINTLN(F("read from EEPROM"));
   if (a != WRITTEN_SIGNATURE)
   {
-    DEBUG_PRINTLN(F("SignTURE not found, writing initial data to EEPROM"));
+    DEBUG_PRINTLN(F("Signature not found, writing initial data to EEPROM"));
     EEPROM.put(0, initPumpSetup);
     EEPROM.put(storedAddress, WRITTEN_SIGNATURE);
   }
@@ -118,6 +120,33 @@ void leakAlarmOn()
   {
     currentStatus = _ALARM;
   }
+}
+
+void handleSensorsCalibration()
+{
+  uint16_t sensorValue = 0;
+  //==============================================================================================  
+  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+  {
+    sensorValue = analogRead(pinOfSensor[i]);
+    if (sensorValue > 400)
+    {
+      if (pumpSetupFromEPR[i].D.sensAirValue < sensorValue)
+      {
+        pumpSetupFromEPR[i].D.sensAirValue = sensorValue;
+      }
+    }
+    else
+    {
+      if (pumpSetupFromEPR[i].D.sensWaterValue > sensorValue)
+      {
+        pumpSetupFromEPR[i].D.sensWaterValue = sensorValue;
+      }
+    }
+
+    delay(10);
+    
+  }  
 }
 
 // Non-blocking LED blink using millis()
@@ -314,18 +343,23 @@ void startStopButtonDoubleClick()
 
 void encBtnClick()
 {
-  if (currentStatus != _SETUP_MODE)
+  switch (currentStatus)
   {
-    return;
+  case _SETUP_MODE:
+    settingIndex++;
+    if (settingIndex >= 4)
+    {
+      settingIndex = 0;
+    }
+    oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
+    encoder.setPosition(oldValue);
+    handleLCDSetupMode();
+    break;
+
+  case _SENS_CALIB:
+    // No need to switch settings in sensor calibration mode, just re-read the sensors and update the LCD
+    break;
   }
-  settingIndex++;
-  if (settingIndex >= sizeof(tUnionSetting) / sizeof(uint8_t))
-  {
-    settingIndex = 0;
-  }
-  oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
-  encoder.setPosition(oldValue);
-  handleLCDSetupMode();
 }
 
 void encBtnDoubleClick()
@@ -342,7 +376,6 @@ void encBtnDoubleClick()
   else
   {
     EEPROM.put(0, pumpSetupFromEPR);
-
     lcd.clear();
 
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
@@ -358,6 +391,10 @@ void encBtnDoubleClick()
       DEBUG_PRINT(F("s, "));
       DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpPause);
       DEBUG_PRINTLN(F("s"));
+      DEBUG_PRINT(F("Sensor values: Air="));
+      DEBUG_PRINT(pumpSetupFromEPR[i].D.sensAirValue);
+      DEBUG_PRINT(F(", Water="));
+      DEBUG_PRINTLN(pumpSetupFromEPR[i].D.sensWaterValue);
       myPump[i].init();
     }
     currentStatus = _RUN;
@@ -366,14 +403,55 @@ void encBtnDoubleClick()
 
 void encBtnLongPressStart()
 {
-  selectedPump++;
-  if (selectedPump >= NB_OF_PUMPS)
+  switch (currentStatus)
   {
-    selectedPump = 0;
+  case _STOP:
+    currentStatus = _SENS_CALIB;
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("ALL sensors CALB");
+    lcd.setCursor(0, 1);
+    lcd.print("Calibrating...  ");
+    break;
+
+  case _SETUP_MODE:
+    selectedPump++;
+    if (selectedPump >= NB_OF_PUMPS)
+    {
+      selectedPump = 0;
+    }
+    oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
+    encoder.setPosition(oldValue);
+    handleLCDSetupMode();
+    break;
+
+  case _SENS_CALIB:
+    EEPROM.put(0, pumpSetupFromEPR);
+
+    lcd.clear();
+
+    for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+    {
+      DEBUG_PRINT(F("Calibr write to EEPROM, pump "));
+      DEBUG_PRINT(i);
+      DEBUG_PRINT(F(": "));
+      DEBUG_PRINT(pumpSetupFromEPR[i].D.minM);
+      DEBUG_PRINT(F("%, "));
+      DEBUG_PRINT(pumpSetupFromEPR[i].D.maxM);
+      DEBUG_PRINT(F("%, "));
+      DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpTime);
+      DEBUG_PRINT(F("s, "));
+      DEBUG_PRINT(pumpSetupFromEPR[i].D.pumpPause);
+      DEBUG_PRINTLN(F("s"));
+      DEBUG_PRINT(F("Sensor values: Air="));
+      DEBUG_PRINT(pumpSetupFromEPR[i].D.sensAirValue);
+      DEBUG_PRINT(F(", Water="));
+      DEBUG_PRINTLN(pumpSetupFromEPR[i].D.sensWaterValue);
+      myPump[i].init();
+    }
+    currentStatus = _STOP;
+    break;
   }
-  oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
-  encoder.setPosition(oldValue);
-  handleLCDSetupMode();
 }
 
 void setup()
@@ -391,6 +469,10 @@ void setup()
 
   DEBUG_PRINT(F("StartStart_ver: "));
   DEBUG_PRINTLN(String(SketchVersion));
+#if defined(DEBUG_ENABLE)
+  DEBUG_PRINTLN(F("Debug mode enabled"));
+  memoryReset(); // Clear EEPROM for testing purposes, comment out in production
+#endif
   memoryInit();
 
   lcd.init();
@@ -399,16 +481,10 @@ void setup()
 
   displayInitPrint();
 
-  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
-  {
-    myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]);
-    myPump[i].init();
-  }
-
   pinMode(pinOfEncoder[0], INPUT); // my encoder does not work withouot this settings!
   pinMode(pinOfEncoder[1], INPUT);
   // Setup encoder button
-  encoderBtn.setLongPressIntervalMs(3000);
+  encoderBtn.setLongPressIntervalMs(900);
   encoderBtn.attachClick(encBtnClick);
   encoderBtn.attachDoubleClick(encBtnDoubleClick);
   encoderBtn.attachLongPressStart(encBtnLongPressStart);
@@ -417,11 +493,18 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), staticStartStopISR, FALLING);
   pinMode(pinINT1AlarmSensors, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
+  startStopButton.setLongPressIntervalMs(3000);
   startStopButton.attachClick(startStopButtonClick);
   startStopButton.attachLongPressStart(startStopButtonLongPress);
   startStopButton.attachDoubleClick(startStopButtonDoubleClick);
 
   EEPROM.get(0, pumpSetupFromEPR);
+
+  for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
+  {
+    myPump[i] = PUMPER(i, pinOfSensor[i], pinOfPump[i], pinOfAlarmSensor[i], pinOfCntrlButton[i]);
+    myPump[i].init();
+  }
 
 #ifdef DEBUG_ENABLE
   currentStatus = _STOP;
@@ -491,7 +574,13 @@ void loop()
       oldValue = newValue;
     }
     break;
+  case _SENS_CALIB:
+    handleSensorsCalibration();
+    break;
   }
 
   handleLED();
+#ifdef DEBUG_ENABLE
+  delay(20); // Small delay in debug mode to avoid flooding the serial output
+#endif
 }

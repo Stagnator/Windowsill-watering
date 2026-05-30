@@ -19,6 +19,7 @@ void PUMPER::init()
   readDataEPR();
   pumpOnOff(OFF); // OFF
   currMoist = map(analogRead(sensPinNo), AirValue, WaterValue, 1, 99);
+  //currMoist = 1;
 
   pumpBtn.setLongPressIntervalMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
@@ -64,12 +65,17 @@ void PUMPER::pumpGo()
 
 void PUMPER::readMoisture()
 {
-  uint16_t mstReadB[3]; // Bufer for raw sensor readings to median
-  uint16_t medianRaw;     // Median of raw sensor readings
+  uint16_t mstReadB[3];    // Bufer for raw sensor readings to median
+  uint16_t medianRaw;      // Median of raw sensor readings
+  uint8_t mappedMoist; // Mapped moisture value before EMA filter
 
   for (uint8_t i = 0; i < 3; ++i)
   {
     mstReadB[i] = analogRead(sensPinNo);
+    DEBUG_PRINT(F("Pump N: "));
+    DEBUG_PRINTLN(pumpNo);
+    DEBUG_PRINT(F("Raw sensor reading: "));
+    DEBUG_PRINTLN(mstReadB[i]);
     delay(SensorSampleDelayMs);
   }
 
@@ -87,8 +93,17 @@ void PUMPER::readMoisture()
   {
     medianRaw = mstReadB[2];
   }
+  DEBUG_PRINT(F("Median raw sensor reading: "));
+  DEBUG_PRINTLN(medianRaw);
 
-  currMoist = (uint8_t)(alfaConst * map(medianRaw, AirValue, WaterValue, 1, 99) + (1 - alfaConst) * currMoist + 0.5f); // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
+  mappedMoist = map(medianRaw, AirValue, WaterValue, 0, 99);
+  DEBUG_PRINT(F("Mapped moisture (before EMA): "));
+  DEBUG_PRINTLN(mappedMoist);
+  currMoist = ((alfaConst_x10 * mappedMoist + (10 - alfaConst_x10) * currMoist) + 5) / 10; // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
+  DEBUG_PRINT(F("Current moisture: "));
+  DEBUG_PRINTLN(currMoist);
+  //uint16_t soilMoistureValue = analogRead(sensPinNo);
+  //currMoist = map(soilMoistureValue, AirValue, WaterValue, 0, 99);
 }
 
 void PUMPER::onePump()
@@ -105,14 +120,16 @@ void PUMPER::readDataEPR()
 {
   EEPROM.get(pumpNo * sizeof(tUnionSetting), pumpSetup);
 
-  pumpSetup.D.minM = constrain(pumpSetup.D.minM, 0, 99); // Validate settings read from EEPROM
-  pumpSetup.D.maxM = constrain(pumpSetup.D.maxM, 0, 99);
+  pumpSetup.D.minM = constrain(pumpSetup.D.minM, 1, 99); // Validate settings read from EEPROM
+  pumpSetup.D.maxM = constrain(pumpSetup.D.maxM, 1, 99);
   if (pumpSetup.D.maxM < pumpSetup.D.minM)
   {
     pumpSetup.D.maxM = pumpSetup.D.minM;
   }
   pumpSetup.D.pumpTime = constrain(pumpSetup.D.pumpTime, 0, 10);
   pumpSetup.D.pumpPause = constrain(pumpSetup.D.pumpPause, 0, 20);
+  pumpSetup.D.sensAirValue = constrain(pumpSetup.D.sensAirValue, 500, 800); // Constrain sensor calibration values to reasonable range
+  pumpSetup.D.sensWaterValue = constrain(pumpSetup.D.sensWaterValue, 100, 300);
   DEBUG_PRINT(F("Pump read from EEPROM, pump "));
   DEBUG_PRINT(pumpNo);
   DEBUG_PRINT(F(": "));
@@ -124,6 +141,10 @@ void PUMPER::readDataEPR()
   DEBUG_PRINT(F("s, "));
   DEBUG_PRINT(pumpSetup.D.pumpPause);
   DEBUG_PRINTLN(F("s"));
+  DEBUG_PRINT(F("Sensor values: Air="));
+  DEBUG_PRINT(pumpSetup.D.sensAirValue);
+  DEBUG_PRINT(F(", Water="));
+  DEBUG_PRINTLN(pumpSetup.D.sensWaterValue);
 }
 
 void PUMPER::diasableEnablePump()
