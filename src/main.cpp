@@ -4,7 +4,7 @@
 //==========================================================//
 
 /************************************************/
-#define SketchVersion "v 0.40"
+#define SketchVersion "v 0.45"
 /************************************************/
 
 #include <Arduino.h>
@@ -218,9 +218,11 @@ void handleLCD()
     switch (myPump[i].getStatus())
     {
     case _WAITING:
+      newString2 += String(myPump[i].getDesiredMoisture() < 10 ? "0" : "");
       newString2 += String(myPump[i].getDesiredMoisture()) + "W";
       break;
     case _RUNNING:
+      newString2 += String(myPump[i].getDesiredMoisture() < 10 ? "0" : "");
       newString2 += String(myPump[i].getDesiredMoisture()) + "R";
       break;
     case _OUT_OF_WATER:
@@ -403,10 +405,9 @@ void setup()
     myPump[i].init();
   }
 
-  
-  pinMode(pinOfEncoder[0], INPUT); //encoder dont work withouot this settings!
+  pinMode(pinOfEncoder[0], INPUT); // my encoder does not work withouot this settings!
   pinMode(pinOfEncoder[1], INPUT);
-// Setup encoder button
+  // Setup encoder button
   encoderBtn.setLongPressIntervalMs(3000);
   encoderBtn.attachClick(encBtnClick);
   encoderBtn.attachDoubleClick(encBtnDoubleClick);
