@@ -25,12 +25,6 @@ typedef enum
 } EStatusOfPump;
 
 // constants
-// Capacitive Sensor RAW data
-// Dry: (565 430]
-// Wet: (430 350]
-// Water: (350 205]
-static constexpr uint16_t AirValue = 565;         // 0 % Calibration of sensors needed!
-static constexpr uint16_t WaterValue = 205;       // 100% Calibration of sensors needed!
 static constexpr uint8_t maxPumpCykles = 60; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
 static constexpr uint8_t SensorSampleDelayMs = 2;      // Delay between sensor readings to stabilize the analog input
 static constexpr float alfaConst_x10 = 2; //alfa ten times for EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
@@ -43,8 +37,8 @@ struct pumpSetting
   uint8_t maxM;      // Max moisture to stop watering (0-99)
   uint8_t pumpTime;  // Time of pumping in seconds (0-10)
   uint8_t pumpPause; // Time of pause between pump cykles in seconds (0-20)
-  uint16_t sensAirValue;   // Calibration value of sensor for 0% moisture (air)
-  uint16_t sensWaterValue; // Calibration value of sensor for 100% moisture (water)
+  uint16_t sensAirValue;   // Calibration value of sensor for 0% moisture (air) ~ 600-700, needs to be set for each sensor
+  uint16_t sensWaterValue; // Calibration value of sensor for 100% moisture (water) ~ 200-300, needs to be set for each sensor
 }; // 8 bytes (64 bits)
 #pragma pack(pop)
 
@@ -63,7 +57,8 @@ private:
   uint8_t alarmPinNo, buttonPinNo;  
   EStatusOfPump pumpStatus; // status
   tUnionSetting pumpSetup;  // pumpSetup.D.minM
-  uint8_t currMoist;        // current moisture from capacitive sensor
+  uint8_t currMoist;        // current moisture 0-99%
+  uint16_t rawCurrMoist;     // 0-1023 raw moisture reading from sensor (10 bit) (for more precise calculations and EMA filter)
   uint8_t runUpCounter;     // Runs up counter to avoid infinite pumping (for safety reasons)
   bool pumpPinState = OFF;
   uint64_t previousMillis; // For counting time in millis

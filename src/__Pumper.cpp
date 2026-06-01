@@ -18,8 +18,8 @@ void PUMPER::init()
   pinMode(alarmPinNo, INPUT);
   readDataEPR();
   pumpOnOff(OFF); // OFF
-  currMoist = map(analogRead(sensPinNo), AirValue, WaterValue, 1, 99);
-  //currMoist = 1;
+  rawCurrMoist = 0;
+  
 
   pumpBtn.setLongPressIntervalMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
@@ -66,16 +66,12 @@ void PUMPER::pumpGo()
 void PUMPER::readMoisture()
 {
   uint16_t mstReadB[3];    // Bufer for raw sensor readings to median
-  uint16_t medianRaw;      // Median of raw sensor readings
-  uint8_t mappedMoist; // Mapped moisture value before EMA filter
+  uint16_t medianRaw;      // Raw sensor reading and median value for more stable readings
 
   for (uint8_t i = 0; i < 3; ++i)
   {
-    mstReadB[i] = analogRead(sensPinNo);
-    DEBUG_PRINT(F("Pump N: "));
-    DEBUG_PRINTLN(pumpNo);
-    DEBUG_PRINT(F("Raw sensor reading: "));
-    DEBUG_PRINTLN(mstReadB[i]);
+    medianRaw = analogRead(sensPinNo);
+    mstReadB[i] = constrain(medianRaw, pumpSetup.D.sensWaterValue, pumpSetup.D.sensAirValue); // Constrain raw sensor reading to calibration values to avoid false triggering of pump due to sensor errors or out of range readings
     delay(SensorSampleDelayMs);
   }
 
@@ -96,14 +92,10 @@ void PUMPER::readMoisture()
   DEBUG_PRINT(F("Median raw sensor reading: "));
   DEBUG_PRINTLN(medianRaw);
 
-  mappedMoist = map(medianRaw, AirValue, WaterValue, 0, 99);
-  DEBUG_PRINT(F("Mapped moisture (before EMA): "));
-  DEBUG_PRINTLN(mappedMoist);
-  currMoist = ((alfaConst_x10 * mappedMoist + (10 - alfaConst_x10) * currMoist) + 5) / 10; // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
-  DEBUG_PRINT(F("Current moisture: "));
-  DEBUG_PRINTLN(currMoist);
-  //uint16_t soilMoistureValue = analogRead(sensPinNo);
-  //currMoist = map(soilMoistureValue, AirValue, WaterValue, 0, 99);
+  rawCurrMoist = ((alfaConst_x10 * medianRaw + (10 - alfaConst_x10) * rawCurrMoist)) / 10; // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)  
+  DEBUG_PRINT(F("Filtered raw sensor reading: "));
+  DEBUG_PRINTLN(rawCurrMoist);
+  currMoist = constrain(map(rawCurrMoist, pumpSetup.D.sensWaterValue, pumpSetup.D.sensAirValue, 99, 0), 0, 99); // Map raw sensor reading to moisture percentage and constrain to 0-99%
 }
 
 void PUMPER::onePump()

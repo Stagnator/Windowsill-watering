@@ -4,7 +4,7 @@
 //==========================================================//
 
 /************************************************/
-#define SketchVersion "v 0.45"
+#define SketchVersion "v 0.46"
 /************************************************/
 
 #include <Arduino.h>
@@ -13,6 +13,7 @@
 #include <OneButton.h>
 #include <RotaryEncoder.h>
 #include <LiquidCrystal_I2C.h>
+
 #include "debug.h"
 
 #include "_Pumper.h" //Class and setup for pumper unit
@@ -26,7 +27,7 @@
 | -Resestive Sensor for watertank's            |
 |    empty control (HIGH is empty)             |
 | -Pump ON/OFF reley module (ON-LOW, OFF-HIGH) |
-|   I'     ve very sensitive modules, so need to set|
+|   I've very sensitive modules, so need to set|
 |   pinMode to INPUT_PULLUP for OFF state and  |
 |   OUTPUT with LOW for ON state               |
 | -Pump control button                         |
@@ -58,9 +59,9 @@ typedef enum
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
     // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src), SensorAirValue, SensorWaterValue
-    {{5, 50, 2, 10, 600, 200}},  // Pump 1 settings
-    {{5, 50, 2, 10, 600, 200}},  // Pump 2 settings
-    {{5, 50, 2, 10, 600, 200}}}; // Pump 3 settings
+    {{5, 50, 2, 10, 800, 200}},  // Pump 1 settings
+    {{5, 50, 2, 10, 800, 200}},  // Pump 2 settings
+    {{5, 50, 2, 10, 800, 200}}}; // Pump 3 settings
 
 static String nameOfSetting[6] = {"minMo", "MAXMo", "PumpT", "PumpP", "SnAir", "SnWat"};
 //=====================================
@@ -109,7 +110,7 @@ void memoryInit()
 void memoryReset()
 {
   EEPROM.put(storedAddress, 0x66); // Clear signature to force re-writing of initial data on next start
-  DEBUG_PRINTLN(F("Memory reset, signature cleared"));
+  DEBUG_PRINTLN(F("\nMemory reset, signature cleared"));
   memoryInit();
 }
 
@@ -124,29 +125,43 @@ void leakAlarmOn()
 
 void handleSensorsCalibration()
 {
-  uint16_t sensorValue = 0;
-  //==============================================================================================  
+  uint16_t sensorValue;
+  uint16_t sensReadB[3];
+
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
   {
-    sensorValue = analogRead(pinOfSensor[i]);
-    if (sensorValue > 400)
+    for (uint8_t j = 0; j < 10; j++) // Take 10 readings for more stable calibration values
     {
-      if (pumpSetupFromEPR[i].D.sensAirValue < sensorValue)
-      {
-        pumpSetupFromEPR[i].D.sensAirValue = sensorValue;
-      }
+      sensReadB[j % 3] = analogRead(pinOfSensor[i]);
+      delay(2);
+    }
+
+    if ((sensReadB[0] <= sensReadB[1] && sensReadB[1] <= sensReadB[2]) ||
+        (sensReadB[0] >= sensReadB[1] && sensReadB[1] >= sensReadB[2]))
+    {
+      sensorValue = sensReadB[1];
+    }
+    else if ((sensReadB[1] <= sensReadB[0] && sensReadB[0] <= sensReadB[2]) ||
+             (sensReadB[1] >= sensReadB[0] && sensReadB[0] >= sensReadB[2]))
+    {
+      sensorValue = sensReadB[0];
     }
     else
     {
-      if (pumpSetupFromEPR[i].D.sensWaterValue > sensorValue)
-      {
-        pumpSetupFromEPR[i].D.sensWaterValue = sensorValue;
-      }
+      sensorValue = sensReadB[2];
+    }
+
+    if (sensorValue > 300) // Sensor in air!
+    {
+      pumpSetupFromEPR[i].D.sensAirValue = sensorValue;
+    }
+    else
+    {
+      pumpSetupFromEPR[i].D.sensWaterValue = sensorValue;
     }
 
     delay(10);
-    
-  }  
+  }
 }
 
 // Non-blocking LED blink using millis()
@@ -293,8 +308,14 @@ void handleLCDSetupMode()
   lcd.print(nameOfSetting[settingIndex]);
   lcd.print(": ");
   lcd.print(oldValue);
-
-  lcd.print("s-%");
+  if (settingIndex == 0 || settingIndex == 1) // For minMo and MAXMo settings, show percentage sign
+  {
+    lcd.print("%  ");
+  }
+  else
+  {
+    lcd.print("s  ");
+  }
 }
 
 // buttons
@@ -324,6 +345,10 @@ void startStopButtonLongPress()
   {
     myPump[i].init();
   }
+  lcd.clear();
+  lcd.print("Memory reset!");
+  delay(1000);
+  lcd.clear();
   handleLCD();
 }
 
@@ -357,7 +382,7 @@ void encBtnClick()
     break;
 
   case _SENS_CALIB:
-    // No need to switch settings in sensor calibration mode, just re-read the sensors and update the LCD
+    handleSensorsCalibration();
     break;
   }
 }
@@ -409,7 +434,9 @@ void encBtnLongPressStart()
     currentStatus = _SENS_CALIB;
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("ALL sensors CALB");
+    lcd.print("ALL sensrs CALBR"); 
+    /* To calibrate sensors, put ALL sensors in water then pressing short button, then  
+    put ALL sensors in air and press short button again. To save values and exit calibration mode*/
     lcd.setCursor(0, 1);
     lcd.print("Calibrating...  ");
     break;
@@ -427,8 +454,9 @@ void encBtnLongPressStart()
 
   case _SENS_CALIB:
     EEPROM.put(0, pumpSetupFromEPR);
-
     lcd.clear();
+    lcd.print("Calibr finished!");
+    delay(1000);
 
     for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
     {
@@ -451,6 +479,9 @@ void encBtnLongPressStart()
     }
     currentStatus = _STOP;
     break;
+
+  default:
+    break;
   }
 }
 
@@ -463,17 +494,17 @@ void setup()
   Serial.begin(57600); // Init serial output for debug
   delay(2000);         // 2 seconds delay for stable start and to read initial debug messages
 #endif
-  EEPROM.begin(); // Init EEPROM for LGT8F328P
 
   pinMode(pinAlarmLED, OUTPUT);
 
   DEBUG_PRINT(F("StartStart_ver: "));
   DEBUG_PRINTLN(String(SketchVersion));
-#if defined(DEBUG_ENABLE)
-  DEBUG_PRINTLN(F("Debug mode enabled"));
-  memoryReset(); // Clear EEPROM for testing purposes, comment out in production
-#endif
+  /*#if defined(DEBUG_ENABLE)
+    DEBUG_PRINTLN(F("Debug mode enabled Resetting memory for testing purposes"));
+    memoryReset(); // Clear EEPROM for testing purposes, comment out in production
+  #endif*/
   memoryInit();
+  EEPROM.get(0, pumpSetupFromEPR);
 
   lcd.init();
   backLightState = HIGH;
@@ -497,8 +528,6 @@ void setup()
   startStopButton.attachClick(startStopButtonClick);
   startStopButton.attachLongPressStart(startStopButtonLongPress);
   startStopButton.attachDoubleClick(startStopButtonDoubleClick);
-
-  EEPROM.get(0, pumpSetupFromEPR);
 
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
   {
@@ -575,7 +604,7 @@ void loop()
     }
     break;
   case _SENS_CALIB:
-    handleSensorsCalibration();
+    
     break;
   }
 
