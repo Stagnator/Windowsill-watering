@@ -372,7 +372,7 @@ void encBtnClick()
   {
   case _SETUP_MODE:
     settingIndex++;
-    if (settingIndex >= 4)
+    if (settingIndex >= 4) // Only first 4 settings are adjustable, last two are for calibration
     {
       settingIndex = 0;
     }
@@ -389,17 +389,9 @@ void encBtnClick()
 
 void encBtnDoubleClick()
 {
-  if (currentStatus != _SETUP_MODE)
+  switch (currentStatus)
   {
-    settingIndex = 0;
-    selectedPump = 0;
-    oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
-    encoder.setPosition(oldValue);
-    currentStatus = _SETUP_MODE;
-    handleLCDSetupMode();
-  }
-  else
-  {
+  case _SETUP_MODE:
     EEPROM.put(0, pumpSetupFromEPR);
     lcd.clear();
 
@@ -423,6 +415,14 @@ void encBtnDoubleClick()
       myPump[i].init();
     }
     currentStatus = _RUN;
+
+  case _STOP:
+    settingIndex = 0;
+    selectedPump = 0;
+    oldValue = pumpSetupFromEPR[selectedPump].B[settingIndex];
+    encoder.setPosition(oldValue);
+    currentStatus = _SETUP_MODE;
+    handleLCDSetupMode();
   }
 }
 
@@ -434,8 +434,8 @@ void encBtnLongPressStart()
     currentStatus = _SENS_CALIB;
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("ALL sensrs CALBR"); 
-    /* To calibrate sensors, put ALL sensors in water then pressing short button, then  
+    lcd.print("ALL sensrs CALBR");
+    /* To calibrate sensors, put ALL sensors in water then pressing short button, then
     put ALL sensors in air and press short button again. To save values and exit calibration mode*/
     lcd.setCursor(0, 1);
     lcd.print("Calibrating...  ");
@@ -604,7 +604,7 @@ void loop()
     }
     break;
   case _SENS_CALIB:
-    
+
     break;
   }
 
