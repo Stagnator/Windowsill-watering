@@ -21,7 +21,7 @@ void PUMPER::init()
   rawCurrMoist = 0;
   
 
-  pumpBtn.setLongPressIntervalMs(800);
+  pumpBtn.setPressMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
   pumpBtn.attachDoubleClick(staticDoubleClickHandler, this);
   pumpBtn.attachLongPressStart(staticLongPressStartHandler, this);

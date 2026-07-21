@@ -151,16 +151,22 @@ void handleSensorsCalibration()
       sensorValue = sensReadB[2];
     }
 
-    if (sensorValue > 300) // Sensor in air!
+    if (sensorValue > 350) // Sensor in air!
     {
       pumpSetupFromEPR[i].D.sensAirValue = sensorValue;
+      lcd.setCursor(0, 1);
+      lcd.print("Calibrating AIR ");
     }
     else
     {
       pumpSetupFromEPR[i].D.sensWaterValue = sensorValue;
+      lcd.setCursor(0, 1);
+      lcd.print("Calibratin WATER");
     }
 
-    delay(10);
+    delay(1000);
+    lcd.setCursor(0, 1);
+    lcd.print("                ");
   }
 }
 
@@ -246,6 +252,9 @@ void handleLCD()
     break;
   case _ALARM:
     newString1 += " ALRM";
+    break;
+  case _SENS_CALIB:
+    newString1 += " CALB";
     break;
   }
   if (newString1 != oldString1)
@@ -414,7 +423,9 @@ void encBtnDoubleClick()
       DEBUG_PRINTLN(pumpSetupFromEPR[i].D.sensWaterValue);
       myPump[i].init();
     }
-    currentStatus = _RUN;
+    currentStatus = _STOP;
+    handleLCD();
+    break;
 
   case _STOP:
     settingIndex = 0;
@@ -423,6 +434,10 @@ void encBtnDoubleClick()
     encoder.setPosition(oldValue);
     currentStatus = _SETUP_MODE;
     handleLCDSetupMode();
+    break;
+
+  default:
+    break;
   }
 }
 
@@ -437,8 +452,7 @@ void encBtnLongPressStart()
     lcd.print("ALL sensrs CALBR");
     /* To calibrate sensors, put ALL sensors in water then pressing short button, then
     put ALL sensors in air and press short button again. To save values and exit calibration mode*/
-    lcd.setCursor(0, 1);
-    lcd.print("Calibrating...  ");
+
     break;
 
   case _SETUP_MODE:
@@ -478,6 +492,7 @@ void encBtnLongPressStart()
       myPump[i].init();
     }
     currentStatus = _STOP;
+    handleLCD();
     break;
 
   default:
@@ -515,7 +530,7 @@ void setup()
   pinMode(pinOfEncoder[0], INPUT); // my encoder does not work withouot this settings!
   pinMode(pinOfEncoder[1], INPUT);
   // Setup encoder button
-  encoderBtn.setLongPressIntervalMs(900);
+  encoderBtn.setPressMs(800);
   encoderBtn.attachClick(encBtnClick);
   encoderBtn.attachDoubleClick(encBtnDoubleClick);
   encoderBtn.attachLongPressStart(encBtnLongPressStart);
@@ -524,7 +539,7 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), staticStartStopISR, FALLING);
   pinMode(pinINT1AlarmSensors, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
-  startStopButton.setLongPressIntervalMs(3000);
+  startStopButton.setPressMs(3000);
   startStopButton.attachClick(startStopButtonClick);
   startStopButton.attachLongPressStart(startStopButtonLongPress);
   startStopButton.attachDoubleClick(startStopButtonDoubleClick);
