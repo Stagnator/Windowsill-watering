@@ -126,32 +126,12 @@ void leakAlarmOn()
 void handleSensorsCalibration()
 {
   uint16_t sensorValue;
-  uint16_t sensReadB[3];
 
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
   {
-    /*for (uint8_t j = 0; j < 10; j++) // Take 10 readings for more stable calibration values
-    {
-      sensReadB[j % 3] = analogRead(pinOfSensor[i]);
-      delay(5);
-    }
-
-    if ((sensReadB[0] <= sensReadB[1] && sensReadB[1] <= sensReadB[2]) ||
-        (sensReadB[0] >= sensReadB[1] && sensReadB[1] >= sensReadB[2]))
-    {
-      sensorValue = sensReadB[1];
-    }
-    else if ((sensReadB[1] <= sensReadB[0] && sensReadB[0] <= sensReadB[2]) ||
-             (sensReadB[1] >= sensReadB[0] && sensReadB[0] >= sensReadB[2]))
-    {
-      sensorValue = sensReadB[0];
-    }
-    else
-    {
-      sensorValue = sensReadB[2];
-    }*/
-   delay(20); // Delay to stabilize the analog input
-   sensorValue = analogRead(pinOfSensor[i]);
+    analogRead(pinOfSensor[i]);
+    delayMicroseconds(200); // Delay to stabilize the analog input
+    sensorValue = analogRead(pinOfSensor[i]);
     DEBUG_PRINT(F("RAW sensor reading: "));
     DEBUG_PRINTLN(sensorValue);
 
@@ -160,14 +140,12 @@ void handleSensorsCalibration()
       pumpSetupFromEPR[i].D.sensAirValue = sensorValue;
       lcd.setCursor(0, 1);
       lcd.print("Calibrating AIR ");
-      
     }
     else
     {
       pumpSetupFromEPR[i].D.sensWaterValue = sensorValue;
       lcd.setCursor(0, 1);
       lcd.print("Calibratin WATER");
-      
     }
 
     delay(1000);
@@ -511,17 +489,16 @@ void setup()
   Wire.begin();
   Wire.setClock(100000); // Set I2C clock to 100kHz
 
-
   Serial.begin(57600); // Init serial output for debug
   delay(2000);         // 2 seconds delay for stable start and to read initial debug messages
 
-
+  analogReference(INTERNAL4V096);
   pinMode(pinAlarmLED, OUTPUT);
-  //DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce power consumption and noise
+  DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce power consumption and noise
 
   DEBUG_PRINT(F("StartStart_ver: "));
   DEBUG_PRINTLN(String(SketchVersion));
-  
+
   memoryInit();
   EEPROM.get(0, pumpSetupFromEPR);
 
@@ -554,11 +531,12 @@ void setup()
     myPump[i].init();
   }
 
-#ifdef DEBUG_ENABLE
-  currentStatus = _STOP;
-#else
+  /*#ifdef DEBUG_ENABLE
+    currentStatus = _STOP;
+  #else
+    currentStatus = _RUN;
+  #endif*/
   currentStatus = _RUN;
-#endif
 
   oldString1.reserve(16);
   oldString1 = "                ";

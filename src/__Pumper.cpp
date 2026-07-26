@@ -69,7 +69,8 @@ void PUMPER::readMoisture()
   
   if (currentMillis - prevMillsSens >= SensorSampleIntervalMs/underRunning)
   {
-    delay(SensorSampleDelayMs*pumpNo); // Delay to stabilize the analog input
+    analogRead(sensPinNo);
+    delayMicroseconds(100); // Delay to stabilize the analog input
     uint32_t rawSensRead = analogRead(sensPinNo);
     if (rawSensRead > 1000)
     {
@@ -79,7 +80,8 @@ void PUMPER::readMoisture()
       delay(5); // Wait for a short time to allow the sensor to discharge
       pinMode(sensPinNo, INPUT); // Set pin back to INPUT mode
       delay(5); // Wait for a short time to stabilize the analog input
-      rawSensRead = analogRead(sensPinNo); // Read the sensor value again
+      analogRead(sensPinNo); // Read the sensor value again
+      delayMicroseconds(200); // Delay to stabilize the analog input
       rawSensRead = analogRead(sensPinNo); // Read the sensor value again
     }
     DEBUG_PRINT(F("Sensor "));
