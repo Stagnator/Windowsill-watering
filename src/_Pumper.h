@@ -27,7 +27,9 @@ typedef enum
 // constants
 static constexpr uint8_t maxPumpCykles = 60; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
 static constexpr uint8_t SensorSampleDelayMs = 2;      // Delay between sensor readings to stabilize the analog input
-static constexpr float alfaConst_x10 = 2; //alfa ten times for EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
+static constexpr uint8_t SensorSampleCount = 3; // Number of sensor readings to take for median calculation
+static constexpr uint64_t SensorSampleIntervalMs = 30000;      // Delay between sensor readings to stabilize the analog input
+static constexpr uint32_t K = 32; //  Constant for EMA filter (for more stable readings and avoid false triggering of pump)
 //=====================================
 
 #pragma pack(push, 1)
@@ -58,10 +60,11 @@ private:
   EStatusOfPump pumpStatus; // status
   tUnionSetting pumpSetup;  // pumpSetup.D.minM
   uint8_t currMoist;        // current moisture 0-99%
-  uint16_t rawCurrMoist;     // 0-1023 raw moisture reading from sensor (10 bit) (for more precise calculations and EMA filter)
+  uint32_t rawCurrMoist;     // 0-1023 raw moisture reading from sensor (10 bit) (for more precise calculations and EMA filter)
   uint8_t runUpCounter;     // Runs up counter to avoid infinite pumping (for safety reasons)
   bool pumpPinState = OFF;
   uint64_t previousMillis; // For counting time in millis
+  uint64_t prevMillsSens; // For counting time in millis for sensor readings (to stabilize the analog input)
 
   void readMoisture();                                                  // +Refresh current moisture from capacity sensor 0-100%
   void pumpOnOff(bool on);                                              // +Turn pump ON or OFF

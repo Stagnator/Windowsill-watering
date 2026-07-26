@@ -14,12 +14,11 @@ void PUMPER::init()
 {
   pumpStatus = _WAITING;
   pumpPinState = OFF;
-  pinMode(sensPinNo, INPUT);
+  // pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
   readDataEPR();
   pumpOnOff(OFF); // OFF
-  rawCurrMoist = 0;
-  
+  rawCurrMoist = (uint32_t)pumpSetup.D.sensWaterValue << 8;
 
   pumpBtn.setPressMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
@@ -65,37 +64,35 @@ void PUMPER::pumpGo()
 
 void PUMPER::readMoisture()
 {
-  uint16_t mstReadB[3];    // Bufer for raw sensor readings to median
-  uint16_t medianRaw;      // Raw sensor reading and median value for more stable readings
-
-  for (uint8_t i = 0; i < 3; ++i)
+  uint64_t currentMillis = millis();
+  uint8_t underRunning = (pumpStatus == _RUNNING) ? 4 : 1;
+  
+  if (currentMillis - prevMillsSens >= SensorSampleIntervalMs/underRunning)
   {
-    medianRaw = analogRead(sensPinNo);
-    mstReadB[i] = constrain(medianRaw, pumpSetup.D.sensWaterValue, pumpSetup.D.sensAirValue); // Constrain raw sensor reading to calibration values to avoid false triggering of pump due to sensor errors or out of range readings
-    delay(SensorSampleDelayMs);
+    delay(SensorSampleDelayMs*pumpNo); // Delay to stabilize the analog input
+    uint32_t rawSensRead = analogRead(sensPinNo);
+    if (rawSensRead > 1000)
+    {
+      DEBUG_PRINTLN(F("Discharging sensor!"));
+      pinMode(sensPinNo, OUTPUT); 
+      digitalWrite(sensPinNo, LOW); // Set pin to LOW to discharge the sensor
+      delay(5); // Wait for a short time to allow the sensor to discharge
+      pinMode(sensPinNo, INPUT); // Set pin back to INPUT mode
+      delay(5); // Wait for a short time to stabilize the analog input
+      rawSensRead = analogRead(sensPinNo); // Read the sensor value again
+      rawSensRead = analogRead(sensPinNo); // Read the sensor value again
+    }
+    DEBUG_PRINT(F("Sensor "));
+    DEBUG_PRINT(sensPinNo);
+    DEBUG_PRINT(F(" reading: "));
+    DEBUG_PRINTLN(rawSensRead);
+    rawCurrMoist = rawCurrMoist + K * (rawSensRead - (rawCurrMoist >> 8)); // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
+    // DEBUG_PRINT(F("Filtered raw sensor reading: "));
+    // DEBUG_PRINTLN(rawCurrMoist);
+    uint16_t filteredValue = rawCurrMoist >> 8;
+    currMoist = constrain(map(filteredValue, pumpSetup.D.sensAirValue, pumpSetup.D.sensWaterValue, 0, 99), 0, 99); // Map raw sensor reading to moisture percentage and constrain to 0-99%
+    prevMillsSens = currentMillis;
   }
-
-  if ((mstReadB[0] <= mstReadB[1] && mstReadB[1] <= mstReadB[2]) ||
-      (mstReadB[0] >= mstReadB[1] && mstReadB[1] >= mstReadB[2]))
-  {
-    medianRaw = mstReadB[1];
-  }
-  else if ((mstReadB[1] <= mstReadB[0] && mstReadB[0] <= mstReadB[2]) ||
-           (mstReadB[1] >= mstReadB[0] && mstReadB[0] >= mstReadB[2]))
-  {
-    medianRaw = mstReadB[0];
-  }
-  else
-  {
-    medianRaw = mstReadB[2];
-  }
-  DEBUG_PRINT(F("Median raw sensor reading: "));
-  DEBUG_PRINTLN(medianRaw);
-
-  rawCurrMoist = ((alfaConst_x10 * medianRaw + (10 - alfaConst_x10) * rawCurrMoist)) / 10; // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)  
-  DEBUG_PRINT(F("Filtered raw sensor reading: "));
-  DEBUG_PRINTLN(rawCurrMoist);
-  currMoist = constrain(map(rawCurrMoist, pumpSetup.D.sensWaterValue, pumpSetup.D.sensAirValue, 99, 0), 0, 99); // Map raw sensor reading to moisture percentage and constrain to 0-99%
 }
 
 void PUMPER::onePump()
@@ -120,8 +117,8 @@ void PUMPER::readDataEPR()
   }
   pumpSetup.D.pumpTime = constrain(pumpSetup.D.pumpTime, 0, 10);
   pumpSetup.D.pumpPause = constrain(pumpSetup.D.pumpPause, 0, 20);
-  pumpSetup.D.sensAirValue = constrain(pumpSetup.D.sensAirValue, 500, 800); // Constrain sensor calibration values to reasonable range
-  pumpSetup.D.sensWaterValue = constrain(pumpSetup.D.sensWaterValue, 100, 300);
+  // pumpSetup.D.sensAirValue = constrain(pumpSetup.D.sensAirValue, 700, 1024); // Constrain sensor calibration values to reasonable range
+  // pumpSetup.D.sensWaterValue = constrain(pumpSetup.D.sensWaterValue, 100, 690);
   DEBUG_PRINT(F("Pump read from EEPROM, pump "));
   DEBUG_PRINT(pumpNo);
   DEBUG_PRINT(F(": "));
@@ -270,6 +267,7 @@ void PUMPER::handlePump()
 
 EStatusOfPump PUMPER::getStatus()
 {
+  readMoisture();
   return pumpStatus;
 }
 

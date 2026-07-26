@@ -4,7 +4,7 @@
 //==========================================================//
 
 /************************************************/
-#define SketchVersion "v 0.46"
+#define SketchVersion "v 0.60"
 /************************************************/
 
 #include <Arduino.h>
@@ -59,9 +59,9 @@ typedef enum
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
     // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src), SensorAirValue, SensorWaterValue
-    {{5, 50, 2, 10, 800, 200}},  // Pump 1 settings
-    {{5, 50, 2, 10, 800, 200}},  // Pump 2 settings
-    {{5, 50, 2, 10, 800, 200}}}; // Pump 3 settings
+    {{10, 60, 10, 60, 800, 200}},  // Pump 1 settings
+    {{10, 60, 10, 60, 800, 200}},  // Pump 2 settings
+    {{10, 60, 10, 60, 800, 200}}}; // Pump 3 settings
 
 static String nameOfSetting[6] = {"minMo", "MAXMo", "PumpT", "PumpP", "SnAir", "SnWat"};
 //=====================================
@@ -130,10 +130,10 @@ void handleSensorsCalibration()
 
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
   {
-    for (uint8_t j = 0; j < 10; j++) // Take 10 readings for more stable calibration values
+    /*for (uint8_t j = 0; j < 10; j++) // Take 10 readings for more stable calibration values
     {
       sensReadB[j % 3] = analogRead(pinOfSensor[i]);
-      delay(2);
+      delay(5);
     }
 
     if ((sensReadB[0] <= sensReadB[1] && sensReadB[1] <= sensReadB[2]) ||
@@ -149,19 +149,25 @@ void handleSensorsCalibration()
     else
     {
       sensorValue = sensReadB[2];
-    }
+    }*/
+   delay(20); // Delay to stabilize the analog input
+   sensorValue = analogRead(pinOfSensor[i]);
+    DEBUG_PRINT(F("RAW sensor reading: "));
+    DEBUG_PRINTLN(sensorValue);
 
-    if (sensorValue > 350) // Sensor in air!
+    if (sensorValue > 600) // Sensor in air!
     {
       pumpSetupFromEPR[i].D.sensAirValue = sensorValue;
       lcd.setCursor(0, 1);
       lcd.print("Calibrating AIR ");
+      
     }
     else
     {
       pumpSetupFromEPR[i].D.sensWaterValue = sensorValue;
       lcd.setCursor(0, 1);
       lcd.print("Calibratin WATER");
+      
     }
 
     delay(1000);
@@ -505,19 +511,17 @@ void setup()
   Wire.begin();
   Wire.setClock(100000); // Set I2C clock to 100kHz
 
-#ifdef DEBUG_ENABLE
+
   Serial.begin(57600); // Init serial output for debug
   delay(2000);         // 2 seconds delay for stable start and to read initial debug messages
-#endif
+
 
   pinMode(pinAlarmLED, OUTPUT);
+  //DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce power consumption and noise
 
   DEBUG_PRINT(F("StartStart_ver: "));
   DEBUG_PRINTLN(String(SketchVersion));
-  /*#if defined(DEBUG_ENABLE)
-    DEBUG_PRINTLN(F("Debug mode enabled Resetting memory for testing purposes"));
-    memoryReset(); // Clear EEPROM for testing purposes, comment out in production
-  #endif*/
+  
   memoryInit();
   EEPROM.get(0, pumpSetupFromEPR);
 
