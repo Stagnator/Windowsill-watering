@@ -71,24 +71,32 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 RotaryEncoder encoder(pinOfEncoder[0], pinOfEncoder[1], RotaryEncoder::LatchMode::TWO03);
 OneButton encoderBtn(pinOfEncoder[2], true);
 OneButton startStopButton(pinINT0StopButton, true, true); // true for active LOW, true for pullup
+
 // Global variables
 uint8_t selectedPump = 0;
 uint8_t settingIndex = 0;
-uint32_t previousMillis = 0;
+uint32_t prevMillisLED = 0;
 bool ledState = LOW;
 bool backLightState = LOW;
 String oldString1, oldString2;
 String newString1, newString2;
 uint8_t oldValue, newValue;
+const constexpr uint32_t pulseSymbolMs = 1000; // LCD pulse symbol duration in milliseconds
+uint32_t prevMillisSmb = 0;
+bool pulseSymbolState = 0;
+
 volatile ECurrStatus currentStatus = _STOP;
 
 // PUMPER *myPump = new PUMPER[NB_OF_PUMPS];
 PUMPER myPump[NB_OF_PUMPS];
 
+// EEPROM variables
 const constexpr uint32_t WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
 const uint32_t eepromSize = EEPROM.length();
 const uint32_t storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
+
+
 
 void memoryInit()
 {
@@ -159,11 +167,11 @@ void alarmLedBlink(uint32_t onTime, uint32_t offTime)
 {
   uint32_t currentMillis = millis();
   uint32_t interval = ledState ? onTime : offTime;
-  if (currentMillis - previousMillis >= interval)
+  if (currentMillis - prevMillisLED >= interval)
   {
     ledState = !ledState;
     digitalWrite(pinAlarmLED, ledState);
-    previousMillis = currentMillis;
+    prevMillisLED = currentMillis;
   }
 }
 
@@ -247,7 +255,13 @@ void handleLCD()
     oldString1 = newString1;
   }
 
-  newString2 = "ST ";
+  uint32_t currentMillis = millis();
+  if (currentMillis - prevMillisSmb >= pulseSymbolMs)
+  {
+    pulseSymbolState = !pulseSymbolState;
+    prevMillisSmb = currentMillis;
+  }
+  newString2 = pulseSymbolState ? "ST " : ">> ";
 
   for (uint8_t i = 0; i < NB_OF_PUMPS; i++)
   {
@@ -483,15 +497,15 @@ void setup()
   Wire.begin();
   Wire.setClock(100000); // Set I2C clock to 100kHz
 
-  #ifdef DEBUG_ENABLE
+#ifdef DEBUG_ENABLE
   Serial.begin(57600); // Init serial output for debug
   delay(2000);         // 2 seconds delay for stable start and to read initial debug messages
-  #endif
+#endif
 
   analogReference(INTERNAL4V096);
   pinMode(pinAlarmLED, OUTPUT);
   EIMSK &= ~((1 << INT0) | (1 << INT1)); // Disable external interrupts INT0 and INT1 during setup (very noisy on my board, so need to disable it during setup)
-  //DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce niose and power consumption and noise
+  // DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce niose and power consumption and noise
 
   DEBUG_PRINT(F("StartStart_ver: "));
   DEBUG_PRINTLN(String(SketchVersion));

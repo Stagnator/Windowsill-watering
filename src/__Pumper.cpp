@@ -64,10 +64,10 @@ void PUMPER::pumpGo()
 
 void PUMPER::readMoisture()
 {
-  uint64_t currentMillis = millis();
+  uint32_t currentMillis = millis();
   uint8_t underRunning = (pumpStatus == _RUNNING) ? 4 : 1;
   
-  if (currentMillis - prevMillsSens >= SensorSampleIntervalMs/underRunning)
+  if (currentMillis - prevMillisSens >= SensorSampleIntervalMs/underRunning)
   {
     analogRead(sensPinNo);
     delayMicroseconds(100); // Delay to stabilize the analog input
@@ -91,7 +91,7 @@ void PUMPER::readMoisture()
     rawCurrMoist = rawCurrMoist + K * (rawSensRead - (rawCurrMoist >> 8)); // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
     uint16_t filteredValue = rawCurrMoist >> 8;
     currMoist = constrain(map(filteredValue, pumpSetup.D.sensAirValue, pumpSetup.D.sensWaterValue, 0, 99), 0, 99); // Map raw sensor reading to moisture percentage and constrain to 0-99%
-    prevMillsSens = currentMillis;
+    prevMillisSens = currentMillis;
   }
 }
 
@@ -159,7 +159,7 @@ void PUMPER::nonBlockingPumpRun(uint32_t onTime, uint32_t offTime)
 {
   uint32_t currentMillis = millis();
   uint32_t interval = !pumpPinState ? onTime : offTime;
-  if (currentMillis - previousMillis >= interval)
+  if (currentMillis - prevMillisPump >= interval)
   {
     pumpPinState = !pumpPinState;
     runUpCounter++;
@@ -169,7 +169,7 @@ void PUMPER::nonBlockingPumpRun(uint32_t onTime, uint32_t offTime)
       pumpPinState = OFF;
     }
     pumpOnOff(pumpPinState);
-    previousMillis = currentMillis;
+    prevMillisPump = currentMillis;
   }
 }
 
