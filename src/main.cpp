@@ -114,9 +114,8 @@ void memoryReset()
   memoryInit();
 }
 
-void leakAlarmOn()
+void checkLeakAlarm()
 {
-  delayMicroseconds(10);
   if (digitalRead(pinINT1AlarmSensors) == LOW) // Check if the pin is still LOW after debounce delay
   {
     currentStatus = _ALARM;
@@ -312,11 +311,6 @@ void handleLCDSetupMode()
 }
 
 // buttons
-void staticStartStopISR()
-{
-  startStopButton.tick();
-}
-
 void startStopButtonClick()
 {
   if (currentStatus == _STOP)
@@ -435,7 +429,7 @@ void encBtnLongPressStart()
     lcd.setCursor(0, 0);
     lcd.print("ALL sensrs CALBR");
     /* To calibrate sensors, put ALL sensors in water then pressing short button, then
-    put ALL sensors in air and press short button again. To save values and exit calibration mode*/
+    put ALL sensors in air and press short button again. To save values and exit calibration mode do long press*/
 
     break;
 
@@ -489,12 +483,15 @@ void setup()
   Wire.begin();
   Wire.setClock(100000); // Set I2C clock to 100kHz
 
+  #ifdef DEBUG_ENABLE
   Serial.begin(57600); // Init serial output for debug
   delay(2000);         // 2 seconds delay for stable start and to read initial debug messages
+  #endif
 
   analogReference(INTERNAL4V096);
   pinMode(pinAlarmLED, OUTPUT);
-  DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce power consumption and noise
+  EIMSK &= ~((1 << INT0) | (1 << INT1)); // Disable external interrupts INT0 and INT1 during setup (very noisy on my board, so need to disable it during setup)
+  //DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce niose and power consumption and noise
 
   DEBUG_PRINT(F("StartStart_ver: "));
   DEBUG_PRINTLN(String(SketchVersion));
@@ -515,11 +512,7 @@ void setup()
   encoderBtn.attachClick(encBtnClick);
   encoderBtn.attachDoubleClick(encBtnDoubleClick);
   encoderBtn.attachLongPressStart(encBtnLongPressStart);
-  // Setup external interrupts for STOP button and leak sensors
-  pinMode(pinINT0StopButton, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(pinINT0StopButton), staticStartStopISR, FALLING);
-  pinMode(pinINT1AlarmSensors, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(pinINT1AlarmSensors), leakAlarmOn, FALLING);
+  // Setup start/stop button
   startStopButton.setPressMs(3000);
   startStopButton.attachClick(startStopButtonClick);
   startStopButton.attachLongPressStart(startStopButtonLongPress);
@@ -551,6 +544,7 @@ void loop()
 {
   encoderBtn.tick();
   startStopButton.tick();
+  checkLeakAlarm(); // Check if leak sensor triggered the alarm
   switch (currentStatus)
   {
   case _ALARM:

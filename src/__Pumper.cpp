@@ -14,7 +14,7 @@ void PUMPER::init()
 {
   pumpStatus = _WAITING;
   pumpPinState = OFF;
-  // pinMode(sensPinNo, INPUT);
+  pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
   readDataEPR();
   pumpOnOff(OFF); // OFF
@@ -72,14 +72,14 @@ void PUMPER::readMoisture()
     analogRead(sensPinNo);
     delayMicroseconds(100); // Delay to stabilize the analog input
     uint32_t rawSensRead = analogRead(sensPinNo);
-    if (rawSensRead > 1000)
+    if (rawSensRead > pumpSetup.D.sensAirValue+150) // If the sensor reading is significantly higher than the air calibration value, it may be due to residual charge in the sensor. Discharge it.
     {
       DEBUG_PRINTLN(F("Discharging sensor!"));
       pinMode(sensPinNo, OUTPUT); 
       digitalWrite(sensPinNo, LOW); // Set pin to LOW to discharge the sensor
-      delay(5); // Wait for a short time to allow the sensor to discharge
+      delayMicroseconds(100); // Wait for a short time to allow the sensor to discharge
       pinMode(sensPinNo, INPUT); // Set pin back to INPUT mode
-      delay(5); // Wait for a short time to stabilize the analog input
+      delayMicroseconds(100); // Wait for a short time to stabilize the analog input
       analogRead(sensPinNo); // Read the sensor value again
       delayMicroseconds(200); // Delay to stabilize the analog input
       rawSensRead = analogRead(sensPinNo); // Read the sensor value again
@@ -89,8 +89,6 @@ void PUMPER::readMoisture()
     DEBUG_PRINT(F(" reading: "));
     DEBUG_PRINTLN(rawSensRead);
     rawCurrMoist = rawCurrMoist + K * (rawSensRead - (rawCurrMoist >> 8)); // EMA filter for moisture readings (to stabilize the readings and avoid false triggering of pump)
-    // DEBUG_PRINT(F("Filtered raw sensor reading: "));
-    // DEBUG_PRINTLN(rawCurrMoist);
     uint16_t filteredValue = rawCurrMoist >> 8;
     currMoist = constrain(map(filteredValue, pumpSetup.D.sensAirValue, pumpSetup.D.sensWaterValue, 0, 99), 0, 99); // Map raw sensor reading to moisture percentage and constrain to 0-99%
     prevMillsSens = currentMillis;
