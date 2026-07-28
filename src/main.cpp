@@ -316,11 +316,11 @@ void handleLCDSetupMode()
   lcd.print(oldValue);
   if (settingIndex == 0 || settingIndex == 1) // For minMo and MAXMo settings, show percentage sign
   {
-    lcd.print("%  ");
+    lcd.print("%   ");
   }
   else
   {
-    lcd.print("s  ");
+    lcd.print("sec ");
   }
 }
 
