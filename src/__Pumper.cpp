@@ -14,7 +14,7 @@ void PUMPER::init()
 {
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
-  readDataEPR();
+  readDataEPR(); // Read pump settings from EEPROM
   pumpOnOff(OFF); // OFF
   rawCurrMoist = (uint32_t)pumpSetup.D.sensWaterValue << 8;
   prevMillisPump = millis();
@@ -115,8 +115,8 @@ void PUMPER::readDataEPR()
   {
     pumpSetup.D.maxM = pumpSetup.D.minM;
   }
-  pumpSetup.D.pumpTime = constrain(pumpSetup.D.pumpTime, 0, 10);
-  pumpSetup.D.pumpPause = constrain(pumpSetup.D.pumpPause, 0, 20);
+  pumpSetup.D.pumpTime = constrain(pumpSetup.D.pumpTime, 0, 99);
+  pumpSetup.D.pumpPause = constrain(pumpSetup.D.pumpPause, 0, 99);
   // pumpSetup.D.sensAirValue = constrain(pumpSetup.D.sensAirValue, 700, 1024); // Constrain sensor calibration values to reasonable range
   // pumpSetup.D.sensWaterValue = constrain(pumpSetup.D.sensWaterValue, 100, 690);
   DEBUG_PRINT(F("Pump read from EEPROM, pump "));

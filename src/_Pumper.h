@@ -26,8 +26,6 @@ typedef enum
 
 // constants
 static constexpr uint8_t maxPumpCykles = 60; // Max count of pumping cykles to reach desired moisture level (for safety reasons)
-static constexpr uint8_t SensorSampleDelayMs = 2;      // Delay between sensor readings to stabilize the analog input
-static constexpr uint8_t SensorSampleCount = 3; // Number of sensor readings to take for median calculation
 static constexpr uint32_t SensorSampleIntervalMs = 30000;      // Delay between sensor readings to stabilize the analog input
 static constexpr uint32_t K = 32; //  Constant for EMA filter (for more stable readings and avoid false triggering of pump)
 //=====================================
@@ -39,8 +37,8 @@ struct pumpSetting
   uint8_t maxM;      // Max moisture to stop watering (0-99)
   uint8_t pumpTime;  // Time of pumping in seconds (0-10)
   uint8_t pumpPause; // Time of pause between pump cykles in seconds (0-20)
-  uint16_t sensAirValue;   // Calibration value of sensor for 0% moisture (air) ~ 600-700, needs to be set for each sensor
-  uint16_t sensWaterValue; // Calibration value of sensor for 100% moisture (water) ~ 200-300, needs to be set for each sensor
+  uint16_t sensAirValue;   // Calibration value of sensor for 0% moisture (air) ~ 600-800, needs to be set for each sensor
+  uint16_t sensWaterValue; // Calibration value of sensor for 100% moisture (water) ~ 200-600, needs to be set for each sensor
 }; // 8 bytes (64 bits)
 #pragma pack(pop)
 
