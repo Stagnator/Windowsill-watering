@@ -57,12 +57,12 @@ private:
   OneButton pumpBtn;
   uint8_t sensPinNo, pumpPinNo;
   uint8_t alarmPinNo, buttonPinNo;  
-  EStatusOfPump pumpStatus; // status
+  EStatusOfPump pumpStatus=_WAITING; // status
   tUnionSetting pumpSetup;  // pumpSetup.D.minM
-  uint8_t currMoist;        // current moisture 0-99%
-  uint32_t rawCurrMoist;     // 0-1023 raw moisture reading from sensor (10 bit) (for more precise calculations and EMA filter)
-  uint8_t runUpCounter;     // Runs up counter to avoid infinite pumping (for safety reasons)
-  bool pumpPinState = OFF;
+  uint8_t currMoist=99;        // current moisture 0-99%
+  uint32_t rawCurrMoist=0;     // 0-1023 raw moisture reading from sensor (10 bit) (for more precise calculations and EMA filter)
+  uint8_t runUpCounter=0;     // Runs up counter to avoid infinite pumping (for safety reasons)
+  bool pumpPinState=OFF; // Pump pin state (ON/OFF)
   uint32_t prevMillisPump; // For counting time in millis
   uint32_t prevMillisSens; // For counting time in millis for sensor readings (to stabilize the analog input)
 

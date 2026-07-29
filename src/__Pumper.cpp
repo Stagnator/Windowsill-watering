@@ -12,13 +12,13 @@ PUMPER::PUMPER(const uint8_t i, const uint8_t sensPin, const uint8_t pumpPin, co
 
 void PUMPER::init()
 {
-  pumpStatus = _WAITING;
-  pumpPinState = OFF;
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
   readDataEPR();
   pumpOnOff(OFF); // OFF
   rawCurrMoist = (uint32_t)pumpSetup.D.sensWaterValue << 8;
+  prevMillisPump = millis();
+  prevMillisSens = millis();
 
   pumpBtn.setPressMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
@@ -72,7 +72,7 @@ void PUMPER::readMoisture()
     analogRead(sensPinNo);
     delayMicroseconds(100); // Delay to stabilize the analog input
     uint32_t rawSensRead = analogRead(sensPinNo);
-    if (rawSensRead > pumpSetup.D.sensAirValue+150) // If the sensor reading is significantly higher than the air calibration value, it may be due to residual charge in the sensor. Discharge it.
+    if (rawSensRead > pumpSetup.D.sensAirValue+150 || rawSensRead < pumpSetup.D.sensWaterValue-150) // If the sensor reading is significantly higher than the air calibration value, it may be due to residual charge in the sensor. Discharge it.
     {
       DEBUG_PRINTLN(F("Discharging sensor!"));
       pinMode(sensPinNo, OUTPUT); 

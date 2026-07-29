@@ -59,9 +59,9 @@ typedef enum
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
     // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src), SensorAirValue, SensorWaterValue
-    {{10, 60, 10, 60, 800, 200}},  // Pump 1 settings
-    {{10, 60, 10, 60, 800, 200}},  // Pump 2 settings
-    {{10, 60, 10, 60, 800, 200}}}; // Pump 3 settings
+    {{10, 60, 10, 60, 800, 400}},  // Pump 1 settings
+    {{10, 60, 10, 60, 800, 400}},  // Pump 2 settings
+    {{10, 60, 10, 60, 800, 400}}}; // Pump 3 settings
 
 static String nameOfSetting[6] = {"minMo", "MAXMo", "PumpT", "PumpP", "SnAir", "SnWat"};
 //=====================================
@@ -95,8 +95,6 @@ const constexpr uint32_t WRITTEN_SIGNATURE = 0xBEEFDEED;
 tUnionSetting pumpSetupFromEPR[NB_OF_PUMPS]; // array of pumps settings read from EEPROM
 const uint32_t eepromSize = EEPROM.length();
 const uint32_t storedAddress = sizeof(tUnionSetting) * NB_OF_PUMPS;
-
-
 
 void memoryInit()
 {
@@ -146,16 +144,16 @@ void handleSensorsCalibration()
     {
       pumpSetupFromEPR[i].D.sensAirValue = sensorValue;
       lcd.setCursor(0, 1);
-      lcd.print("Calibrating AIR ");
+      lcd.print("Calib AIR " + String(i + 1) + ": " + String(sensorValue));
     }
     else
     {
       pumpSetupFromEPR[i].D.sensWaterValue = sensorValue;
       lcd.setCursor(0, 1);
-      lcd.print("Calibratin WATER");
+      lcd.print("Calib WAT " + String(i + 1) + ": " + String(sensorValue));
     }
 
-    delay(1000);
+    delay(2000);
     lcd.setCursor(0, 1);
     lcd.print("                ");
   }
@@ -177,8 +175,6 @@ void alarmLedBlink(uint32_t onTime, uint32_t offTime)
 
 void displayInitPrint()
 {
-  ledState = HIGH;
-  digitalWrite(pinAlarmLED, ledState);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Windowsill Water");
@@ -186,8 +182,6 @@ void displayInitPrint()
   lcd.print("Stagnator ");
   lcd.print(SketchVersion);
   delay(2000);
-  ledState = LOW;
-  digitalWrite(pinAlarmLED, ledState);
   lcd.clear();
 }
 
@@ -504,8 +498,8 @@ void setup()
 
   analogReference(INTERNAL4V096);
   pinMode(pinAlarmLED, OUTPUT);
-  EIMSK &= ~((1 << INT0) | (1 << INT1)); // Disable external interrupts INT0 and INT1 during setup (very noisy on my board, so need to disable it during setup)
-  // DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce niose and power consumption and noise
+  EIMSK &= ~((1 << INT0) | (1 << INT1));               // Disable external interrupts INT0 and INT1 during setup (very noisy on my board, so need to disable it during setup)
+  DIDR0 |= (1 << ADC3D) | (1 << ADC6D) | (1 << ADC7D); // Disable digital input buffers on analog pins A3, A6, and A7 to reduce niose and power consumption and noise
 
   DEBUG_PRINT(F("StartStart_ver: "));
   DEBUG_PRINTLN(String(SketchVersion));
@@ -513,11 +507,15 @@ void setup()
   memoryInit();
   EEPROM.get(0, pumpSetupFromEPR);
 
+  ledState = HIGH;
+  digitalWrite(pinAlarmLED, ledState);
+
   lcd.init();
   backLightState = HIGH;
   lcd.backlight();
 
-  displayInitPrint();
+  prevMillisLED = millis();
+  prevMillisSmb = millis();
 
   pinMode(pinOfEncoder[0], INPUT); // my encoder does not work withouot this settings!
   pinMode(pinOfEncoder[1], INPUT);
@@ -538,6 +536,8 @@ void setup()
     myPump[i].init();
   }
 
+  displayInitPrint();
+
   /*#ifdef DEBUG_ENABLE
     currentStatus = _STOP;
   #else
@@ -552,6 +552,8 @@ void setup()
   newString1.reserve(16);
   newString2.reserve(16);
   handleLCD();
+  ledState = LOW;
+  digitalWrite(pinAlarmLED, ledState);
 }
 
 void loop()
