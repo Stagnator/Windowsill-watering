@@ -4,7 +4,7 @@
 //==========================================================//
 
 /************************************************/
-#define SketchVersion "v 0.60"
+#define SketchVersion "v 0.70"
 /************************************************/
 
 #include <Arduino.h>
@@ -59,9 +59,9 @@ typedef enum
 // initial data for pumping setting
 tUnionSetting initPumpSetup[NB_OF_PUMPS]{
     // MinM(%), MaxM(%), PumpTime(sec), PumpPause(src), SensorAirValue, SensorWaterValue
-    {{10, 60, 10, 60, 800, 400}},  // Pump 1 settings
-    {{10, 60, 10, 60, 800, 400}},  // Pump 2 settings
-    {{10, 60, 10, 60, 800, 400}}}; // Pump 3 settings
+    {{50, 60, 20, 60, 800, 300}},  // Pump 1 settings
+    {{50, 60, 20, 60, 800, 300}},  // Pump 2 settings
+    {{50, 60, 20, 60, 800, 300}}}; // Pump 3 settings
 
 static String nameOfSetting[6] = {"minMo", "MAXMo", "PumpT", "PumpP", "SnAir", "SnWat"};
 //=====================================
@@ -510,6 +510,7 @@ void setup()
   ledState = HIGH;
   digitalWrite(pinAlarmLED, ledState);
 
+  delay(200); // Wait for
   lcd.init();
   backLightState = HIGH;
   lcd.backlight();
@@ -616,7 +617,6 @@ void loop()
   }
 
   handleLED();
-#ifdef DEBUG_ENABLE
-  delay(20); // Small delay in debug mode to avoid flooding the serial output
-#endif
+
+  delay(5); // Small delay 
 }

@@ -15,10 +15,10 @@ void PUMPER::init()
   pinMode(sensPinNo, INPUT);
   pinMode(alarmPinNo, INPUT);
   readDataEPR(); // Read pump settings from EEPROM
-  pumpOnOff(OFF); // OFF
+  
   rawCurrMoist = (uint32_t)pumpSetup.D.sensWaterValue << 8;
-  prevMillisPump = millis();
-  prevMillisSens = millis();
+  prevMillisPump = 0;
+  prevMillisSens = 0;
 
   pumpBtn.setPressMs(800);
   pumpBtn.attachClick(staticClickHandler, this);
@@ -36,6 +36,9 @@ void PUMPER::init()
 
   DEBUG_PRINT(F("pump ready: "));
   DEBUG_PRINTLN(pumpNo);
+  pumpOnOff(ON); // check if pump is working (for LOW active pump)
+  delay(500); // Wait for pump to stabilize
+  pumpOnOff(OFF); // OFF
 }
 
 void PUMPER::pumpOnOff(bool on)
@@ -159,6 +162,7 @@ void PUMPER::nonBlockingPumpRun(uint32_t onTime, uint32_t offTime)
 {
   uint32_t currentMillis = millis();
   uint32_t interval = !pumpPinState ? onTime : offTime;
+  DEBUG_PRINTLN(currentMillis - prevMillisPump);
   if (currentMillis - prevMillisPump >= interval)
   {
     pumpPinState = !pumpPinState;
@@ -169,6 +173,10 @@ void PUMPER::nonBlockingPumpRun(uint32_t onTime, uint32_t offTime)
       pumpPinState = OFF;
     }
     pumpOnOff(pumpPinState);
+    DEBUG_PRINT(F("Pump NO: "));
+    DEBUG_PRINTLN(pumpNo);
+    DEBUG_PRINT(F("Pump state: "));
+    DEBUG_PRINTLN(!pumpPinState ? F("ON") : F("OFF"));
     prevMillisPump = currentMillis;
   }
 }
@@ -251,6 +259,7 @@ void PUMPER::handlePump()
     else
     {
       nonBlockingPumpRun(pumpSetup.D.pumpTime * 1000, pumpSetup.D.pumpPause * 1000);
+    
     }
     break;
 
